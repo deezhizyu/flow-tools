@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Flow Tools",
+  "version": "1.5.0",
+  "description": "Collapsible quick-select buttons for Nano Banana (Pro / 2 / 2 Lite), Veo 3.1 (Quality / Flash / Lite), and Omni Flash on Google Flow, plus a one-click paste-prompt button.",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://labs.google/fx/*/tools/flow/*",
+        "https://labs.google/fx/tools/flow/*",
+        "https://flow.google/*"
+      ],
+      "js": ["content.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
