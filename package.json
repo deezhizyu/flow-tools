@@ -1,0 +1,23 @@
+{
+  "name": "flow-tools",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.1",
+    "@preact/preset-vite": "^2.10.6",
+    "@types/chrome": "^0.2.7",
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  },
+  "description": "Collapsible quick-select buttons for Nano Banana, Veo 3.1, and Omni Flash on Google Flow, plus a one-click paste-prompt button."
+}
