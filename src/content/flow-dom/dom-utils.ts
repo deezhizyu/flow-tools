@@ -8,8 +8,6 @@ export function isVisible(el: Element | null): boolean {
   return !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
 }
 
-// Resolves as soon as `fn` turns truthy, via MutationObserver instead of a
-// polling interval, so it reacts the instant Flow's DOM actually changes;
 // `timeout` is a fallback for a condition that never arrives.
 export function waitFor<T>(fn: () => T | null | undefined, { timeout = 2500 }: { timeout?: number } = {}): Promise<T | null> {
   return new Promise((resolve) => {

@@ -12,9 +12,6 @@ interface FloatingIconButtonProps {
   children: ComponentChildren;
 }
 
-// Shared shell for the paste/clear-references buttons — floating, pixel-
-// positioned icon buttons that fade with Flow's own settings panel (see
-// #fqs-widget's fade rule in style.css).
 export function FloatingIconButton(props: FloatingIconButtonProps) {
   const [pressed, press] = usePressed();
 

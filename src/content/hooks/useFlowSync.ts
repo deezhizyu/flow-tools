@@ -7,6 +7,7 @@ import {
   getPromptBox,
   getPromptScrollContainer,
   getPromptWidget,
+  isVisible,
   readTriggerSummary,
   type TriggerSummary,
 } from '../flow-dom';
@@ -58,8 +59,7 @@ function summaryEqual(a: TriggerSummary | null, b: TriggerSummary | null): boole
 }
 
 // Preact skips the re-render when a setState updater returns the previous
-// reference — this tick fires on every DOM mutation/resize/scroll, most of
-// which change nothing the widget cares about.
+// reference — most ticks change nothing the widget cares about.
 function statesEqual(a: FlowSyncState, b: FlowSyncState): boolean {
   return (
     a.box === b.box &&
@@ -73,8 +73,7 @@ function statesEqual(a: FlowSyncState, b: FlowSyncState): boolean {
 }
 
 // Vertical anchor comes from the whole widget (accounts for Frames mode's
-// extra row); horizontal centers the clear-references + paste pair on the
-// text box itself.
+// extra row); horizontal centers on the text box itself.
 function computePastePos(box: HTMLElement, widget: HTMLElement | null): { pastePos: PastePos; clearRefsPos: PastePos } {
   const topRect = (widget || box).getBoundingClientRect();
   const boxRect = box.getBoundingClientRect();
@@ -87,24 +86,6 @@ function computePastePos(box: HTMLElement, widget: HTMLElement | null): { pasteP
   };
 }
 
-function readState(): FlowSyncState {
-  const box = getPromptBox();
-  if (!box) return EMPTY_STATE;
-
-  const trigger = findMainTrigger();
-  const widget = getPromptWidget(box, trigger);
-  const { pastePos, clearRefsPos } = computePastePos(box, widget);
-  return {
-    box,
-    widget,
-    panelOpen: !!getPanel(),
-    triggerSummary: readTriggerSummary(trigger),
-    pastePos,
-    clearRefsPos,
-    isEditPage: getFlowRouteMode() === 'edit',
-  };
-}
-
 export function useFlowSync(): FlowSyncState {
   const [state, setState] = useState<FlowSyncState>(EMPTY_STATE);
   const observedWidget = useRef<HTMLElement | null>(null);
@@ -112,6 +93,43 @@ export function useFlowSync(): FlowSyncState {
 
   useEffect(() => {
     let tickScheduled = false;
+
+    // Flow rarely swaps these out, so the last find is kept as long as
+    // it's still attached (and, for box/panel, still visible).
+    let cachedBox: HTMLElement | null = null;
+    let cachedTrigger: HTMLButtonElement | null = null;
+    let cachedPanel: HTMLElement | null = null;
+
+    function currentBox(): HTMLElement | null {
+      if (!cachedBox || !cachedBox.isConnected || !isVisible(cachedBox)) cachedBox = getPromptBox();
+      return cachedBox;
+    }
+    function currentTrigger(): HTMLButtonElement | null {
+      if (!cachedTrigger || !cachedTrigger.isConnected) cachedTrigger = findMainTrigger();
+      return cachedTrigger;
+    }
+    function currentPanel(): HTMLElement | null {
+      if (!cachedPanel || !cachedPanel.isConnected || !isVisible(cachedPanel)) cachedPanel = getPanel();
+      return cachedPanel;
+    }
+
+    function readState(): FlowSyncState {
+      const box = currentBox();
+      if (!box) return EMPTY_STATE;
+
+      const trigger = currentTrigger();
+      const widget = getPromptWidget(box, trigger);
+      const { pastePos, clearRefsPos } = computePastePos(box, widget);
+      return {
+        box,
+        widget,
+        panelOpen: !!currentPanel(),
+        triggerSummary: readTriggerSummary(trigger),
+        pastePos,
+        clearRefsPos,
+        isEditPage: getFlowRouteMode() === 'edit',
+      };
+    }
 
     function tick() {
       const next = readState();
@@ -128,7 +146,6 @@ export function useFlowSync(): FlowSyncState {
       setState((prev) => (statesEqual(prev, next) ? prev : next));
     }
 
-    // Mutations/resizes arrive in bursts — coalesce into one tick per frame.
     function scheduleTick() {
       if (tickScheduled) return;
       tickScheduled = true;

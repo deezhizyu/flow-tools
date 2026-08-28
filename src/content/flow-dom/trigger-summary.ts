@@ -10,12 +10,9 @@ export interface TriggerSummary {
   isVideo: boolean;
 }
 
-// The collapsed trigger always renders a live summary of the current tab's
-// settings (e.g. "Nano Banana Pro x1" or "Video · 720p · 6s x1"), so
-// reading it mirrors Flow's selection without opening the panel. A
-// resolution marker only appears on the video tab — locale-independent,
-// unlike matching localized mode labels. Note: it can't tell Veo and Omni
-// apart once a tier gives Veo a duration too — see useFlowPresets.
+// The collapsed trigger renders a live summary of the current tab's
+// settings (e.g. "Nano Banana Pro x1" or "Video · 720p · 6s x1") — reading
+// it mirrors Flow's selection without opening the panel.
 export function readTriggerSummary(trigger = findMainTrigger()): TriggerSummary | null {
   if (!trigger) return null;
   const textParts = Array.from(trigger.childNodes)

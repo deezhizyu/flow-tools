@@ -1,24 +1,18 @@
-/* Colors and sizing below intentionally mirror Google Flow's own
-   settings-panel stylesheet, so this overlay matches pixel-for-pixel. */
+/* Colors and sizing mirror Google Flow's own settings-panel stylesheet. */
 
-/* While flow-dom.ts is driving Flow's own settings panel programmatically
-   (a single preset click, or a full model scan), Flow's real panel would
-   otherwise visibly flicker open and click through options on its own —
-   hidden for the duration instead. Targets both the panel and its nested
-   model dropdown, since either can be open when this class is toggled on;
-   pointer-events is also disabled so a hidden, mid-flight panel can never
-   catch a stray real click from the user. */
+/* Hides Flow's real panel while flow-dom.ts drives it programmatically
+   (it would otherwise visibly flicker open/click through options on its
+   own). Covers both the panel and its nested model dropdown; pointer-events
+   is disabled so a hidden, mid-flight panel can't catch a stray real click. */
 body.fqs-automating .DropdownMenuContent,
 body.fqs-automating [role='menu'] {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Used by reveal.ts to cut short Flow's own blur+grain settle animation
-   the instant a generated image is actually ready to paint. -hold pins the
-   blur layer hidden while its readiness is confirmed (Flow's own fade-in
-   starts before that point); -done and -hide are applied together once
-   confirmed, replacing the multi-second settle with an instant cut. */
+/* Used by reveal.ts: -hold pins the blur layer hidden while readiness is
+   confirmed (Flow's own fade-in starts before that point); -done/-hide
+   replace the multi-second settle with an instant cut once confirmed. */
 .fqs-reveal-hold {
   opacity: 0 !important;
 }
@@ -40,13 +34,8 @@ body.fqs-automating [role='menu'] {
   z-index: 70;
 }
 
-/* Shared fade for every piece that appears/disappears on its own —
-   the widget as a whole (on entering/leaving an /edit/ page), the
-   overlay panel and its refresh button (opening/closing), and the
-   paste/clear-references buttons (Flow's own settings panel opening).
-   Kept mounted and toggled via this class instead of being added/removed
-   from the DOM, so the opacity transition actually has something to
-   animate between. */
+/* Kept mounted and toggled via this class instead of being added/removed
+   from the DOM, so the opacity transition has something to animate between. */
 #fqs-widget,
 #fqs-overlay,
 #fqs-refresh-btn,
@@ -64,8 +53,6 @@ body.fqs-automating [role='menu'] {
   pointer-events: none;
 }
 
-/* Shared visual for both the toggle and refresh buttons — position is set
-   per-id separately so each can sit at its own spot in the widget. */
 .fqs-round-btn {
   all: unset;
   box-sizing: border-box;
@@ -99,9 +86,6 @@ body.fqs-automating [role='menu'] {
   background-color: rgba(68, 70, 72, 0.9);
 }
 
-/* Anchored to the widget's own fixed corner rather than stacked in normal
-   flow, so opening/closing the overlay below it — which changes its
-   height — never shifts the button. */
 #fqs-toggle-btn {
   right: 0;
   bottom: 0;
@@ -113,11 +97,8 @@ body.fqs-automating [role='menu'] {
   cursor: grabbing;
 }
 
-/* Sits at the same bottom row as the toggle button, immediately beside
-   it — on its left by default, since the toggle's own right:0 anchor
-   leaves that side free. Mirrored to the toggle's right under
-   fqs-align-left below, since the panel then grows rightward from the
-   toggle and the toggle's left side is where the panel needs the room. */
+/* Mirrored to the toggle's right under fqs-align-left below, since the
+   overlay then grows rightward and needs the toggle's left side clear. */
 #fqs-refresh-btn {
   right: calc(var(--fqs-btn-size) + 8px);
   bottom: 0;
@@ -145,9 +126,8 @@ body.fqs-automating [role='menu'] {
   }
 }
 
-/* Bottom-anchored 40px above the widget's corner (32px button + 8px gap)
-   so it grows upward from a fixed point below the button, instead of the
-   button riding on top of the overlay's own changing height. */
+/* 40px = 32px button + 8px gap, so the overlay grows upward from a fixed
+   point below the button instead of riding its own changing height. */
 #fqs-overlay {
   position: absolute;
   right: 0;
@@ -171,17 +151,13 @@ body.fqs-automating [role='menu'] {
   color: rgb(255, 255, 255);
 }
 
-/* Flips per computePlacement() in App.tsx once the dragged button crosses
-   into the top or left half of the screen — see the comment there. */
 #fqs-widget.fqs-open-below #fqs-overlay {
   top: 8px;
   bottom: auto;
 }
 
-/* Aligns the overlay's left edge with the button's own left edge, not
-   with the widget's zero-width anchor point (x:0) — the button always
-   sits pinned at right:0, so its left edge is one button-width to the
-   left of that origin. */
+/* The button sits pinned at right:0, so its left edge is one button-width
+   left of the widget's own x:0 anchor — aligned to here, not to x:0. */
 #fqs-widget.fqs-align-left #fqs-overlay {
   left: calc(-1 * var(--fqs-btn-size));
   right: auto;
@@ -261,17 +237,13 @@ body.fqs-automating [role='menu'] {
   background-color: rgba(218, 220, 224, 0.05);
 }
 
-/* Persistent highlight for whichever preset currently matches Flow's own
-   live selection (or, for the Omni Flash amount row, the saved local
-   preference) — Flow's own [data-state="active"] pill color. */
+/* Mirrors Flow's own [data-state="active"] pill color. */
 #fqs-overlay button.fqs-active {
   background-color: rgba(218, 220, 224, 0.18);
 }
 
-/* Brief "selected" flash on click, using Flow's own [data-state="active"]
-   highlight color, so pressing a preset gives the same visual feedback
-   Flow's real menu gives its currently-selected pill. Declared after
-   .fqs-active so a click flash is still visible on an already-active button. */
+/* Declared after .fqs-active so a click flash is still visible on an
+   already-active button. */
 #fqs-overlay button.fqs-pressed {
   background-color: rgba(218, 220, 224, 0.25);
 }

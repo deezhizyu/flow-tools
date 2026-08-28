@@ -31,16 +31,15 @@ function modelWords(text: string): Set<string> {
   );
 }
 
-// Loose: every word of targetName must appear in text. Used to bucket a
-// scanned label into the right overlay section without being tripped up
-// by version-number suffixes.
+// Loose: every word of targetName must appear in text — buckets a scanned
+// label into the right overlay section without tripping on version suffixes.
 export function textContainsModelWords(text: string, targetName: string): boolean {
   const target = modelWords(targetName);
   const actual = modelWords(text);
   return [...target].every((word) => actual.has(word));
 }
 
-// Exact: word sets must match. Scanned labels come from the same source
+// Exact: word sets must match — scanned labels come from the same source
 // and should compare byte-for-byte modulo icon-ligature noise.
 function textMatchesModel(text: string, targetName: string): boolean {
   const target = modelWords(targetName);
@@ -61,8 +60,6 @@ function waitForMenuItems(): Promise<HTMLElement[] | null> {
   });
 }
 
-// Returns whether it actually switched models — callers use this to skip
-// the post-switch settle wait when nothing changed.
 export async function selectModelIfNeeded(panel: HTMLElement, modelName: string): Promise<boolean> {
   const modelBtn = getModelMenuButton(panel);
   if (!modelBtn || matchesModel(modelBtn, modelName)) return false;
@@ -79,9 +76,8 @@ export async function selectModelIfNeeded(panel: HTMLElement, modelName: string)
   return true;
 }
 
-// Reads the dropdown's options without changing the selection: opens it,
-// reads every item, then closes it via the same trigger click that opened
-// it (Radix toggles on repeat clicks).
+// Opens the dropdown, reads every item, then closes it via the same
+// trigger click that opened it (Radix toggles open/closed on repeat clicks).
 export async function scanModelNames(panel: HTMLElement): Promise<string[]> {
   const modelBtn = getModelMenuButton(panel);
   if (!modelBtn) return [];

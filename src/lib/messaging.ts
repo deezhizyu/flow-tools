@@ -1,6 +1,3 @@
-// Typed message-passing layer between the content script and the
-// background worker, which owns chrome.storage.local access.
-
 import type { Amount, ScanResult, SectionsExpanded, VideoMode } from './models';
 
 export interface Point {
@@ -9,11 +6,8 @@ export interface Point {
 }
 
 export interface Prefs {
-  // Raw labels exactly as Flow renders them — not a closed union, since
-  // the valid set is discovered live from Flow's own menu.
   nanoModel: string;
   veoModel: string;
-  // Saved per video category so switching one doesn't disturb the other.
   veoVideoMode: VideoMode;
   omniVideoMode: VideoMode;
   veoAmount: Amount;
@@ -25,8 +19,6 @@ export interface Prefs {
   overlayOpen: boolean;
   buttonOffset: Point;
   sectionsExpanded: SectionsExpanded;
-  // Cached scan of Flow's own panel, reused across loads instead of
-  // rescanning; the refresh button overwrites it.
   scan: ScanResult | null;
 }
 

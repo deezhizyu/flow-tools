@@ -1,9 +1,7 @@
 // Nano Banana / Veo tiles run a blur+grain settle animation after a
 // generation finishes that lingers a couple seconds past the point where
-// the real image is already decoded and ready to paint. This watches every
-// in-flight tile's progress badge and, the instant its image can actually
-// be shown, jumps straight to the finished look instead of waiting out
-// Flow's own animation.
+// the real image is already decoded — this jumps straight to the finished
+// look instead of waiting out Flow's own animation.
 
 import { waitFor } from './dom-utils';
 
@@ -26,9 +24,6 @@ function findBlurLayer(root: Element): HTMLElement | null {
   return null;
 }
 
-// The tile is the closest ancestor of the badge that also contains both the
-// blur layer and the actual image, i.e. the smallest ancestor scoped to a
-// single generation rather than the whole gallery grid.
 function findTile(badge: Element): HTMLElement | null {
   let node = badge.parentElement;
   while (node && node !== document.body) {
@@ -47,10 +42,8 @@ function whenPaintReady(img: HTMLImageElement): Promise<void> {
 }
 
 // The blur layer's own opacity fades in on Flow's schedule, independent of
-// whether the image has actually decoded — so it can already be revealing
-// an empty layer before there's anything to show. Holding it hidden for the
-// whole wait keeps the normal placeholder as the only visible thing until
-// decode is confirmed, then everything flips to final state in one frame.
+// whether the image has actually decoded, so it's held hidden until decode
+// is confirmed and everything flips to final state in one frame.
 async function revealTile(tile: HTMLElement): Promise<void> {
   const blurLayer = await waitFor(() => findBlurLayer(tile));
   if (!blurLayer) return;
@@ -68,12 +61,32 @@ async function revealTile(tile: HTMLElement): Promise<void> {
   }
 }
 
+// Badges are only ever discovered at the moment they're inserted (or, more
+// rarely, when their text is filled in via a childList replacement on the
+// element itself) — collecting candidates from the mutation batch avoids
+// re-querying the whole document on every tick.
+function collectCandidates(mutations: MutationRecord[]): Set<Element> {
+  const candidates = new Set<Element>();
+  const addSubtree = (node: Node) => {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as Element;
+    if (el.matches('div, span')) candidates.add(el);
+    for (const child of el.querySelectorAll('div, span')) candidates.add(child);
+  };
+  for (const mutation of mutations) {
+    addSubtree(mutation.target);
+    for (const node of mutation.addedNodes) addSubtree(node);
+  }
+  return candidates;
+}
+
 export function watchInstantReveal(): () => void {
   const tracked = new Map<Element, HTMLElement>();
   let scheduled = false;
+  let pending: MutationRecord[] = [];
 
-  function sync(): void {
-    for (const el of document.querySelectorAll('div, span')) {
+  function sync(candidates: Iterable<Element>): void {
+    for (const el of candidates) {
       if (!tracked.has(el) && isProgressBadge(el)) {
         const tile = findTile(el);
         if (tile) tracked.set(el, tile);
@@ -87,18 +100,21 @@ export function watchInstantReveal(): () => void {
     }
   }
 
-  function scheduleSync(): void {
+  function scheduleSync(mutations?: MutationRecord[]): void {
+    if (mutations) pending.push(...mutations);
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      sync();
+      const batch = pending;
+      pending = [];
+      sync(collectCandidates(batch));
     });
   }
 
   const observer = new MutationObserver(scheduleSync);
   observer.observe(document.body, { childList: true, subtree: true });
-  sync();
+  sync(document.querySelectorAll('div, span'));
 
   return () => observer.disconnect();
 }

@@ -6,11 +6,9 @@ interface ToggleButtonProps {
   onToggle: () => void;
   onPointerDown: (ev: PointerEvent) => void;
   onPointerMove: (ev: PointerEvent) => void;
-  onPointerUp: () => boolean; // true if the pointer dragged rather than clicked
+  onPointerUp: () => boolean;
 }
 
-// Sits above the overlay as its open/close control, and doubles as the
-// drag handle for the whole widget (button + overlay move together).
 export function ToggleButton(props: ToggleButtonProps) {
   const [pressed, press] = usePressed();
 

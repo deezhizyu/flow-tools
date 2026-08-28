@@ -3,11 +3,8 @@ import type { Point } from '../../lib/messaging';
 
 const DRAG_THRESHOLD = 4;
 
-// Tracks a drag offset for a handle element. Adopts `initialOffset` (e.g.
-// a position loaded asynchronously) as it arrives until the user actually
-// drags, after which the drag's own offset wins. onPointerUp returns
-// whether the pointer moved past the threshold, so the caller can tell a
-// drag apart from a plain click.
+// Adopts initialOffset (e.g. loaded async) until the user actually drags —
+// after that, the drag's own offset wins.
 export function useDraggable(initialOffset: Point, onDragEnd: (offset: Point) => void) {
   const [offset, setOffset] = useState<Point>(initialOffset);
   const offsetRef = useRef(initialOffset);

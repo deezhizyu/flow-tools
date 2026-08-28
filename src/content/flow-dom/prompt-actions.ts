@@ -49,9 +49,8 @@ function dispatchDeleteBackward(box: HTMLElement): void {
   );
 }
 
-// Selects all text then fires one deleteContentBackward, same as
-// Backspace with everything selected — unlike Flow's own clear button,
-// this doesn't also wipe uploaded reference images.
+// Same as Backspace with everything selected — unlike Flow's own clear
+// button, this doesn't also wipe uploaded reference images.
 async function clearPromptText(box: HTMLElement): Promise<void> {
   await selectAllText(box);
   dispatchDeleteBackward(box);
@@ -115,8 +114,6 @@ function findClearButton(scope: HTMLElement): HTMLButtonElement | null {
   );
 }
 
-// Clears text + references via Flow's own button, then restores just the
-// text — so references are dropped without losing what was typed.
 export async function clearReferences(): Promise<void> {
   if (isBusy()) return;
   setBusy(true);

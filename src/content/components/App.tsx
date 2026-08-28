@@ -15,10 +15,6 @@ import { ToggleButton } from './ToggleButton';
 // button's screen position from the drag offset alone.
 const WIDGET_ANCHOR = 16;
 
-// Flips the overlay to open downward once dragged into the top half of the
-// screen. Horizontally, the screen splits into three regions around the
-// prompt box's edges, each bisected so the overlay always opens toward
-// open space rather than off-screen or under the box.
 function computePlacement(offset: { x: number; y: number }, boxRect: { left: number; right: number }) {
   const buttonRight = window.innerWidth - WIDGET_ANCHOR + offset.x;
   const buttonBottom = window.innerHeight - WIDGET_ANCHOR + offset.y;
@@ -104,7 +100,6 @@ export function App() {
           {...presets}
         />
       </div>
-      {/* Faded while Flow's own panel is open — it opens in the same spot. */}
       {pastePos && (
         <PasteButton top={pastePos.top} left={pastePos.left} visible={!panelOpen} onPaste={() => void pasteFromClipboard()} />
       )}

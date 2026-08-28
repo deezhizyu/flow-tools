@@ -1,11 +1,8 @@
-// Sole owner of chrome.storage.local: the content script never touches
-// storage directly, it asks over the messaging layer instead.
-
 import { AMOUNTS, SECTION_IDS, type ScanActiveState, type ScannedModel, type VideoModeScan } from '../lib/models';
 import { DEFAULT_PREFS, type Message, type Prefs } from '../lib/messaging';
 
-// Model labels are discovered live from Flow's menu, so this worker (no
-// DOM access) can't validate against a known set — only checks shape.
+// No DOM access here, so labels can only be shape-checked, not matched
+// against Flow's live menu.
 function isValidModelLabel(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length < 200;
 }

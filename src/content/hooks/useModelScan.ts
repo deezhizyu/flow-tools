@@ -9,8 +9,6 @@ interface ModelScanState {
   refresh: () => void;
 }
 
-// A scan interrupted by the user closing Flow's menu fails fast (see the
-// panel-closed checks in scanFlow/scanVideoMode) and is just retried.
 const MAX_ATTEMPTS = 3;
 
 async function scanWithRetries(): Promise<ScanResult | null> {
@@ -22,8 +20,6 @@ async function scanWithRetries(): Promise<ScanResult | null> {
   return null;
 }
 
-// Scans once per account rather than every load — a persisted scan is
-// adopted as-is; `refresh` re-runs on demand and reports via `onScanned`.
 export function useModelScan(
   ready: boolean,
   prefsLoaded: boolean,

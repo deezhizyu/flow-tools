@@ -7,9 +7,6 @@ interface RefreshButtonProps {
   visible: boolean;
 }
 
-// Same round style as ToggleButton, sitting in the same bottom row right
-// beside it rather than inside the overlay panel — see #fqs-refresh-btn
-// in style.css.
 export function RefreshButton(props: RefreshButtonProps) {
   const [pressed, press] = usePressed();
   return (

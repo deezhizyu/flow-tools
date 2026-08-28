@@ -55,10 +55,8 @@ export interface FlowPresets {
   onOmniResolution: (modelLabel: string, resolution: string) => void;
 }
 
-// Tracks which video model/mode is actually live in Flow (the collapsed
-// trigger alone can't tell Veo and Omni apart once both show a duration),
-// and translates every overlay interaction into apply-if-active +
-// save-for-later.
+// The collapsed trigger alone can't tell Veo and Omni apart once both show
+// a duration, so the live video model/mode is tracked here separately.
 export function useFlowPresets(deps: FlowPresetsDeps): FlowPresets {
   const { prefs, triggerSummary, scan } = deps;
   const [videoActive, setVideoActive] = useState<VideoActive>({ mode: 'frames', modelLabel: null });
@@ -74,8 +72,6 @@ export function useFlowPresets(deps: FlowPresetsDeps): FlowPresets {
   const veoActive = activeVideoCategory === 'veo';
   const omniActive = activeVideoCategory === 'omni';
 
-  // Only applies live once its category is already the active selection
-  // in Flow — otherwise it's just saved for the next click that opens it.
   function applyModelIfActive(active: boolean, tabIcon: 'image' | 'videocam', modelName: string, mode?: VideoMode) {
     if (!active || !triggerSummary?.count) return;
     applyPreset({ tabIcon, mode, modelName, subText: triggerSummary.count });
@@ -100,7 +96,7 @@ export function useFlowPresets(deps: FlowPresetsDeps): FlowPresets {
   }
 
   // Unlike Veo's model, Omni's pick is only ever remembered, never applied
-  // live — matches the omniModel pref (see lib/messaging.ts).
+  // live (see omniModel in lib/messaging.ts).
   function onSetOmniModel(label: string) {
     deps.setOmniModel(label);
   }
@@ -131,9 +127,9 @@ export function useFlowPresets(deps: FlowPresetsDeps): FlowPresets {
     if (omniActive) void applyAmount(amount);
   }
 
-  // Only pushed to Flow live if Omni is the active tab — otherwise
-  // clicking a resolution while e.g. Veo is showing would switch Flow's
-  // live tab/model out from under the user.
+  // Only pushed to Flow live if Omni is the active tab — otherwise clicking
+  // a resolution while e.g. Veo is showing would switch Flow's live
+  // tab/model out from under the user.
   function onOmniResolution(modelLabel: string, resolution: string) {
     deps.setOmniResolution(resolution);
     if (omniActive) {

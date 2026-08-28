@@ -13,7 +13,6 @@ export function applyPromptMaxHeight(container: HTMLElement | null): void {
 
 export type FlowRouteMode = 'compose' | 'edit';
 
-// An open image/video's edit view has nothing for the overlay to apply to.
 export function getFlowRouteMode(): FlowRouteMode {
   return location.pathname.includes('/edit/') ? 'edit' : 'compose';
 }

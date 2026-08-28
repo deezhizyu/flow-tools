@@ -28,8 +28,7 @@ export function findMainTrigger(): HTMLButtonElement | null {
 
 // Frames mode inserts a Start/End row above the prompt box, so the widget's
 // top edge isn't box.getBoundingClientRect().top — climb to the nearest
-// ancestor that also contains the main trigger, which spans the whole
-// widget in both modes.
+// ancestor that also contains the main trigger.
 export function getPromptWidget(box: HTMLElement, trigger = findMainTrigger()): HTMLElement {
   if (!trigger) return getPromptContainer(box);
   let el: HTMLElement | null = box;
@@ -45,8 +44,8 @@ export function getPanel(): HTMLElement | null {
 }
 
 // Every panel row (tabs, mode, aspect ratio, resolution, duration, amount)
-// is a `.flow_tab_slider_trigger`. Icon rows carry an <i> ligature; the
-// plain-text rows don't (see is*Text below).
+// is a `.flow_tab_slider_trigger`; icon rows carry an <i> ligature, plain-
+// text rows don't.
 export function getTriggers(panel: HTMLElement): HTMLButtonElement[] {
   return Array.from(panel.querySelectorAll<HTMLButtonElement>('.flow_tab_slider_trigger'));
 }
@@ -55,8 +54,6 @@ export function triggerIcon(btn: HTMLButtonElement): string | null {
   return btn.querySelector('i')?.textContent?.trim() || null;
 }
 
-// Reports whether it actually clicked (vs. the row already being active),
-// so callers can skip the settle wait when nothing changed.
 export function clickTriggerByIcon(panel: HTMLElement, iconName: string): boolean {
   const btn = getTriggers(panel).find((b) => triggerIcon(b) === iconName);
   if (!btn || btn.getAttribute('data-state') === 'active') return false;
@@ -82,7 +79,6 @@ export function allTriggerTexts(panel: HTMLElement, matches: (text: string) => b
     .map((b) => b.textContent!.trim());
 }
 
-// Digits are locale-independent, unlike matching a translated label.
 export const isDurationText = (t: string) => /^\d+s$/i.test(t);
 export const isResolutionText = (t: string) => /^\d+p$/i.test(t);
 export const isAmountText = (t: string) => /^x\d+$/i.test(t);
@@ -95,8 +91,7 @@ export function getModelMenuButton(panel: HTMLElement): HTMLButtonElement | null
 
 // After a model switch, Flow remounts the resolution/duration/amount rows
 // a beat later — rather than guess a fixed delay, resolve once the row
-// text stops changing for `quiet` ms, so this waits exactly as long as
-// each model's re-render actually takes. `timeout` is a hard ceiling.
+// text stops changing for `quiet` ms. `timeout` is a hard ceiling.
 export function waitForStableTriggers(
   panel: HTMLElement,
   { timeout = 700, quiet = 60 }: { timeout?: number; quiet?: number } = {}
@@ -140,8 +135,8 @@ export function waitForStableTriggers(
   });
 }
 
-// Tolerates the panel element itself being remounted mid-wait by
-// re-resolving getPanel() on every check, falling back to `fallbackPanel`.
+// Re-resolves getPanel() on every check to tolerate the panel element
+// itself being remounted mid-wait.
 export function waitForTriggerByText(fallbackPanel: HTMLElement, text: string): Promise<HTMLButtonElement | null> {
   return waitFor(() => {
     const panel = getPanel() || fallbackPanel;
@@ -149,9 +144,9 @@ export function waitForTriggerByText(fallbackPanel: HTMLElement, text: string): 
   });
 }
 
-// Every panel interaction below visibly flickers Flow's real panel open —
-// this class hides it via CSS instead of styling element references
-// directly, since a tab switch mid-operation can remount it.
+// Panel interactions below visibly flicker Flow's real panel open — this
+// class hides it via CSS instead of styling element references directly,
+// since a tab switch mid-operation can remount it.
 function setAutomating(active: boolean): void {
   document.body.classList.toggle('fqs-automating', active);
 }

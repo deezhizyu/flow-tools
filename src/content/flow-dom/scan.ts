@@ -1,7 +1,3 @@
-// Opens Flow's panel and reads its available models/options directly,
-// rather than hardcoding them, so the overlay matches whatever the
-// account's subscription tier actually offers.
-
 import type { ScanActiveState, ScannedModel, ScanResult, VideoMode, VideoModeScan } from '../../lib/models';
 import { modelLabelText, scanModelNames, selectModelIfNeeded } from './model-match';
 import { waitFor } from './dom-utils';
@@ -45,8 +41,6 @@ function snapshotActiveState(panel: HTMLElement): ScanActiveState {
   };
 }
 
-// Replays a snapshot's selection, so a scan (which clicks through every
-// model and mode) leaves the live project as it found it.
 async function restoreActiveState(panel: HTMLElement, snap: ScanActiveState): Promise<void> {
   clickTriggerByIcon(panel, snap.tab);
   panel = (await waitFor(getPanel)) || panel;

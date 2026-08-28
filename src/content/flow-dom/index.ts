@@ -1,7 +1,4 @@
-// Public surface of the flow-dom module, consumed by the content script's
-// components/hooks. Internal helpers stay in their own files and are not
-// re-exported here.
-
+export { isVisible } from './dom-utils';
 export { getFlowRouteMode, applyPromptMaxHeight, getPromptScrollContainer, type FlowRouteMode } from './layout';
 export { textContainsModelWords } from './model-match';
 export { findMainTrigger, getPanel, getPromptBox, getPromptWidget } from './panel';

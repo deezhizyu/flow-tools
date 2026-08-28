@@ -6,7 +6,7 @@ import { clickTriggerByIcon, getPanel, getTriggers, VIDEO_MODE_ICON, waitForTrig
 
 export interface ApplyPresetOptions {
   tabIcon: 'image' | 'videocam';
-  mode?: VideoMode; // required to pick a video model's variant/duration correctly
+  mode?: VideoMode;
   modelName: string;
   // Reasserted after selecting the model, since switching models resets
   // the resolution row to whatever Flow last used for it.

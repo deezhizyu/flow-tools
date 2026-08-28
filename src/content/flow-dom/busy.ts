@@ -1,5 +1,5 @@
-// Mutual-exclusion flag shared by panel-driven actions and direct
-// prompt-box actions, since both act on the same live prompt box.
+// Shared by panel-driven actions and direct prompt-box actions, since both
+// act on the same live prompt box.
 let busy = false;
 
 export function isBusy(): boolean {

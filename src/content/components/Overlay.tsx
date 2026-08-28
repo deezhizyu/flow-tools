@@ -28,9 +28,11 @@ interface OverlayProps {
   nanoActive: boolean;
   veoActive: boolean;
   omniActive: boolean;
-  count: Amount | null; // shared across sections — meaningful only where *Active is true
-  duration: string | null; // shared across the video sections — meaningful only where *Active is true
-  resolution: string | null; // shared across the video sections — meaningful only where *Active is true
+  // Shared across sections — each is meaningful only where the matching
+  // *Active flag is true.
+  count: Amount | null;
+  duration: string | null;
+  resolution: string | null;
 
   onSetNanoModel: (label: string) => void;
   onSetVeoModel: (label: string) => void;
@@ -49,8 +51,7 @@ interface OverlayProps {
 // Display-only abbreviations — matching always uses the untouched label.
 const LABEL_ABBREVIATIONS: [RegExp, string][] = [[/\[Lower Priority\]/i, '[LP]']];
 
-// Strips a label's base-name words for compact button text (e.g. "Veo 3.1
-// - Fast" + "Veo 3.1" -> "Fast"), falling back to the full label.
+// e.g. "Veo 3.1 - Fast" + "Veo 3.1" -> "Fast", falling back to the full label.
 function shortLabel(label: string, base: string): string {
   const normalize = (w: string) => w.toLowerCase().replace(/[^a-z0-9]/g, '');
   const baseWords = new Set(base.split(/\s+/).filter(Boolean).map(normalize));
