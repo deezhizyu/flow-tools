@@ -66,7 +66,7 @@ function categoryOf(label: string | null): 'veo' | 'omni' | null {
 }
 
 export function App() {
-  const { box, panelOpen, triggerSummary, pastePos, clearRefsPos } = useFlowSync();
+  const { box, panelOpen, triggerSummary, pastePos, clearRefsPos, isEditPage } = useFlowSync();
   const {
     prefs,
     loaded: prefsLoaded,
@@ -104,7 +104,9 @@ export function App() {
   if (!box) return null;
 
   const { openBelow, alignLeft } = computePlacement(offset, box.getBoundingClientRect());
-  const widgetClass = [openBelow && 'fqs-open-below', alignLeft && 'fqs-align-left'].filter(Boolean).join(' ');
+  const widgetClass = [openBelow && 'fqs-open-below', alignLeft && 'fqs-align-left', isEditPage && 'fqs-hidden']
+    .filter(Boolean)
+    .join(' ');
 
   const nanoActive = isNanoActive(triggerSummary);
   const activeVideoCategory = triggerSummary?.isVideo ? categoryOf(videoActive.modelLabel) : null;
@@ -183,6 +185,11 @@ export function App() {
 
   return (
     <>
+      {/* An open image/video's edit view has nothing for the quick-settings
+          overlay to apply to — fade out the whole widget there (rather
+          than unmounting it) so the transition has something to animate
+          between; paste/clear-references below stay since they still act
+          on the same prompt box. */}
       <div id="fqs-widget" class={widgetClass} style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
         <ToggleButton
           open={prefs.overlayOpen}
@@ -191,67 +198,66 @@ export function App() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         />
-        {prefs.overlayOpen && <RefreshButton scanning={scanning} onRefresh={refresh} />}
-        {prefs.overlayOpen && (
-          <Overlay
-            prefs={prefs}
-            scan={scan}
-            sectionsExpanded={prefs.sectionsExpanded}
-            onToggleSection={(id) => setSectionExpanded(id, !prefs.sectionsExpanded[id])}
-            nanoActive={nanoActive}
-            veoActive={veoActive}
-            omniActive={omniActive}
-            count={triggerSummary?.count ?? null}
-            duration={triggerSummary?.duration ?? null}
-            resolution={triggerSummary?.resolution ?? null}
-            onSetNanoModel={handleNanoModel}
-            onSetVeoModel={handleVeoModel}
-            onSetOmniModel={handleOmniModel}
-            onSetVeoMode={handleVeoMode}
-            onSetOmniMode={handleOmniMode}
-            onSetVeoAmount={handleVeoAmount}
-            onSetOmniAmount={handleOmniAmount}
-            onImg={(amount) => applyPreset({ tabIcon: 'image', modelName: prefs.nanoModel, subText: amount })}
-            onVeoDuration={(duration) => {
-              applyPreset({
-                tabIcon: 'videocam',
-                mode: prefs.veoVideoMode,
-                modelName: prefs.veoModel,
-                subText: duration,
-                amount: prefs.veoAmount,
-              });
-              setVideoActive({ mode: prefs.veoVideoMode, modelLabel: prefs.veoModel });
-            }}
-            onVeoResolution={(resolution) => {
-              applyPreset({ tabIcon: 'videocam', mode: prefs.veoVideoMode, modelName: prefs.veoModel, subText: resolution });
-              setVideoActive({ mode: prefs.veoVideoMode, modelLabel: prefs.veoModel });
-            }}
-            onOmniDuration={(modelLabel, duration) => {
-              applyPreset({
-                tabIcon: 'videocam',
-                mode: prefs.omniVideoMode,
-                modelName: modelLabel,
-                // Switching into Omni resets its resolution row to whatever
-                // Flow last used for it — reassert the saved pick here too,
-                // or it silently reverts even though it was never touched.
-                resolution: prefs.omniResolution ?? undefined,
-                subText: duration,
-                amount: prefs.omniAmount,
-              });
-              setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
-            }}
-            onOmniResolution={handleOmniResolution}
-          />
-        )}
+        <RefreshButton visible={prefs.overlayOpen} scanning={scanning} onRefresh={refresh} />
+        <Overlay
+          prefs={prefs}
+          scan={scan}
+          visible={prefs.overlayOpen}
+          sectionsExpanded={prefs.sectionsExpanded}
+          onToggleSection={(id) => setSectionExpanded(id, !prefs.sectionsExpanded[id])}
+          nanoActive={nanoActive}
+          veoActive={veoActive}
+          omniActive={omniActive}
+          count={triggerSummary?.count ?? null}
+          duration={triggerSummary?.duration ?? null}
+          resolution={triggerSummary?.resolution ?? null}
+          onSetNanoModel={handleNanoModel}
+          onSetVeoModel={handleVeoModel}
+          onSetOmniModel={handleOmniModel}
+          onSetVeoMode={handleVeoMode}
+          onSetOmniMode={handleOmniMode}
+          onSetVeoAmount={handleVeoAmount}
+          onSetOmniAmount={handleOmniAmount}
+          onImg={(amount) => applyPreset({ tabIcon: 'image', modelName: prefs.nanoModel, subText: amount })}
+          onVeoDuration={(duration) => {
+            applyPreset({
+              tabIcon: 'videocam',
+              mode: prefs.veoVideoMode,
+              modelName: prefs.veoModel,
+              subText: duration,
+              amount: prefs.veoAmount,
+            });
+            setVideoActive({ mode: prefs.veoVideoMode, modelLabel: prefs.veoModel });
+          }}
+          onVeoResolution={(resolution) => {
+            applyPreset({ tabIcon: 'videocam', mode: prefs.veoVideoMode, modelName: prefs.veoModel, subText: resolution });
+            setVideoActive({ mode: prefs.veoVideoMode, modelLabel: prefs.veoModel });
+          }}
+          onOmniDuration={(modelLabel, duration) => {
+            applyPreset({
+              tabIcon: 'videocam',
+              mode: prefs.omniVideoMode,
+              modelName: modelLabel,
+              // Switching into Omni resets its resolution row to whatever
+              // Flow last used for it — reassert the saved pick here too,
+              // or it silently reverts even though it was never touched.
+              resolution: prefs.omniResolution ?? undefined,
+              subText: duration,
+              amount: prefs.omniAmount,
+            });
+            setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
+          }}
+          onOmniResolution={handleOmniResolution}
+        />
       </div>
       {/* Flow's own settings panel opens directly above the prompt box —
-          the same spot the paste button lives in — so hide it while that
-          panel is open instead of letting the two overlap. */}
-      {!panelOpen && pastePos && (
-        <PasteButton top={pastePos.top} left={pastePos.left} onPaste={() => void pasteFromClipboard()} />
+          the same spot the paste button lives in — so fade them out while
+          that panel is open instead of letting the two overlap. */}
+      {pastePos && (
+        <PasteButton top={pastePos.top} left={pastePos.left} visible={!panelOpen} onPaste={() => void pasteFromClipboard()} />
       )}
-      {!panelOpen && clearRefsPos && (
-        <ClearRefsButton top={clearRefsPos.top} left={clearRefsPos.left} onClear={() => void clearReferences()} />
+      {clearRefsPos && (
+        <ClearRefsButton top={clearRefsPos.top} left={clearRefsPos.left} visible={!panelOpen} onClear={() => void clearReferences()} />
       )}
     </>
   );

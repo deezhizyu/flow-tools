@@ -24,6 +24,7 @@ interface FlowSyncState {
   triggerSummary: TriggerSummary | null;
   pastePos: PastePos | null;
   clearRefsPos: PastePos | null;
+  isEditPage: boolean;
 }
 
 const EMPTY_STATE: FlowSyncState = {
@@ -33,6 +34,7 @@ const EMPTY_STATE: FlowSyncState = {
   triggerSummary: null,
   pastePos: null,
   clearRefsPos: null,
+  isEditPage: false,
 };
 
 // Vertical anchor comes from the whole widget (so Frames mode's extra top
@@ -90,6 +92,10 @@ export function useFlowSync(): FlowSyncState {
         triggerSummary: readTriggerSummary(),
         pastePos,
         clearRefsPos,
+        // An open image/video's own edit view — the quick-settings overlay
+        // has nothing to apply to there, but paste/clear-references still
+        // act on the same prompt box, so those stay.
+        isEditPage: location.pathname.includes('/edit/'),
       });
     }
 

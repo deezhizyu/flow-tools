@@ -19,6 +19,7 @@ import { usePressed } from './usePressed';
 interface OverlayProps {
   prefs: Prefs;
   scan: ScanResult | null;
+  visible: boolean;
   sectionsExpanded: SectionsExpanded;
   onToggleSection: (id: SectionId) => void;
 
@@ -164,7 +165,7 @@ export function Overlay(props: OverlayProps) {
   const omniResolutions = omniScanModel?.resolutions ?? [];
 
   return (
-    <div id="fqs-overlay">
+    <div id="fqs-overlay" class={cx(!props.visible && 'fqs-hidden')}>
       <Section id="nano" label="Nano Banana" expanded={props.sectionsExpanded.nano} onToggle={props.onToggleSection}>
         <ModelRow values={resolvedNanoModels} base={NANO_BASE} active={prefs.nanoModel} onSelect={props.onSetNanoModel} />
         <PresetRow values={AMOUNTS} active={props.nanoActive ? props.count : null} onSelect={props.onImg} />

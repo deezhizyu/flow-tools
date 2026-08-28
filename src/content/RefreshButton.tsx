@@ -3,6 +3,7 @@ import { usePressed } from './usePressed';
 interface RefreshButtonProps {
   scanning: boolean;
   onRefresh: () => void;
+  visible: boolean;
 }
 
 function cx(...classes: Array<string | false | undefined>): string {
@@ -18,9 +19,9 @@ export function RefreshButton(props: RefreshButtonProps) {
     <button
       type="button"
       id="fqs-refresh-btn"
-      class={cx('fqs-round-btn', props.scanning && 'fqs-spinning', pressed && 'fqs-pressed')}
+      class={cx('fqs-round-btn', props.scanning && 'fqs-spinning', pressed && 'fqs-pressed', !props.visible && 'fqs-hidden')}
       onClick={() => press(props.onRefresh)}
-      disabled={props.scanning}
+      disabled={props.scanning || !props.visible}
       title="Rescan Flow's models and options"
     >
       <span class="google-symbols" aria-hidden="true">

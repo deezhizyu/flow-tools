@@ -22,6 +22,30 @@ body.fqs-automating [role='menu'] {
   z-index: 70;
 }
 
+/* Shared fade for every piece that appears/disappears on its own —
+   the widget as a whole (on entering/leaving an /edit/ page), the
+   overlay panel and its refresh button (opening/closing), and the
+   paste/clear-references buttons (Flow's own settings panel opening).
+   Kept mounted and toggled via this class instead of being added/removed
+   from the DOM, so the opacity transition actually has something to
+   animate between. */
+#fqs-widget,
+#fqs-overlay,
+#fqs-refresh-btn,
+#fqs-paste-btn,
+#fqs-clear-refs-btn {
+  transition: opacity 0.1s ease;
+}
+
+#fqs-widget.fqs-hidden,
+#fqs-overlay.fqs-hidden,
+#fqs-refresh-btn.fqs-hidden,
+#fqs-paste-btn.fqs-hidden,
+#fqs-clear-refs-btn.fqs-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Shared visual for both the toggle and refresh buttons — position is set
    per-id separately so each can sit at its own spot in the widget. */
 .fqs-round-btn {

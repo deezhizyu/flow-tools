@@ -3,6 +3,7 @@ import { usePressed } from './usePressed';
 interface PasteButtonProps {
   top: number;
   left: number;
+  visible: boolean;
   onPaste: () => void;
 }
 
@@ -19,10 +20,11 @@ export function PasteButton(props: PasteButtonProps) {
     <button
       type="button"
       id="fqs-paste-btn"
-      class={pressed ? 'fqs-pressed' : ''}
+      class={[pressed && 'fqs-pressed', !props.visible && 'fqs-hidden'].filter(Boolean).join(' ')}
       style={{ top: `${props.top}px`, left: `${props.left}px` }}
       title="Paste prompt from clipboard"
       onClick={handleClick}
+      disabled={!props.visible}
     >
       📋
     </button>
