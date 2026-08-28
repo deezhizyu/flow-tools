@@ -649,6 +649,18 @@ async function clearPromptText(box: HTMLElement): Promise<void> {
   }
 }
 
+function insertPromptText(box: HTMLElement, text: string): void {
+  box.dispatchEvent(
+    new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      inputType: 'insertText',
+      data: text,
+    })
+  );
+}
+
 // The prompt box is a controlled rich-text editor that ignores
 // document.execCommand and synthetic "paste" events, and only accepts
 // "beforeinput" events (inputType "insertText" to type, "deleteContentBackward"
@@ -676,16 +688,63 @@ export async function pasteFromClipboard(): Promise<void> {
     await nextPaint();
 
     await clearPromptText(box);
+    insertPromptText(box, text);
+  } finally {
+    busy = false;
+  }
+}
 
-    box.dispatchEvent(
-      new InputEvent('beforeinput', {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        inputType: 'insertText',
-        data: text,
-      })
+// Finds Flow's own bar-wide "clear" (X) button within `scope` — identified
+// by its "close" icon ligature, same locale-independent trick as
+// findMainTrigger. Unlike clearPromptText (which only touches the prompt
+// text), this is Flow's own control and also wipes any uploaded
+// ingredients/frame image references — which is the whole point here.
+function findClearButton(scope: HTMLElement): HTMLButtonElement | null {
+  const buttons = Array.from(scope.querySelectorAll<HTMLButtonElement>('button'));
+  return (
+    buttons.find((b) => {
+      const icon = b.querySelector('i');
+      return !!icon && icon.textContent!.trim() === 'close';
+    }) || null
+  );
+}
+
+// Clears both the prompt text and any reference images via Flow's own
+// clear button (which wipes both together, unlike clearPromptText), then
+// restores just the prompt text — so references are dropped without
+// losing what was typed.
+export async function clearReferences(): Promise<void> {
+  if (busy) return;
+  busy = true;
+  try {
+    const box = getPromptBox();
+    if (!box) return;
+    const widget = getPromptWidget(box);
+    const clearBtn = findClearButton(widget);
+    if (!clearBtn) return;
+
+    const text = box.textContent || '';
+    fullClick(clearBtn);
+    if (!text) return;
+
+    // Wait for the box to actually reflect the clear rather than a fixed
+    // delay — compares against the captured text (not just emptiness),
+    // since Flow's placeholder can leave a stray invisible character that
+    // would keep a `!textContent` check from ever passing and fall through
+    // to waitFor's full timeout instead of resolving off the mutation.
+    const clearedBox = await waitFor(
+      () => {
+        const b = getPromptBox();
+        return b && b.textContent !== text ? b : null;
+      },
+      { timeout: 800 }
     );
+    const targetBox = clearedBox || getPromptBox();
+    if (!targetBox) return;
+
+    targetBox.focus();
+    await nextPaint();
+    insertPromptText(targetBox, text);
   } finally {
     busy = false;
   }

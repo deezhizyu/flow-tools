@@ -4,10 +4,12 @@ import {
   applyAmount,
   applyPreset,
   applyVideoMode,
+  clearReferences,
   isNanoActive,
   pasteFromClipboard,
   textContainsModelWords,
 } from './flow-dom';
+import { ClearRefsButton } from './ClearRefsButton';
 import { Overlay } from './Overlay';
 import { PasteButton } from './PasteButton';
 import { ToggleButton } from './ToggleButton';
@@ -48,7 +50,7 @@ function categoryOf(label: string | null): 'veo' | 'omni' | null {
 }
 
 export function App() {
-  const { box, panelOpen, triggerSummary, pastePos } = useFlowSync();
+  const { box, panelOpen, triggerSummary, pastePos, clearRefsPos } = useFlowSync();
   const {
     prefs,
     loaded: prefsLoaded,
@@ -232,6 +234,9 @@ export function App() {
           panel is open instead of letting the two overlap. */}
       {!panelOpen && pastePos && (
         <PasteButton top={pastePos.top} left={pastePos.left} onPaste={() => void pasteFromClipboard()} />
+      )}
+      {!panelOpen && clearRefsPos && (
+        <ClearRefsButton top={clearRefsPos.top} left={clearRefsPos.left} onClear={() => void clearReferences()} />
       )}
     </>
   );

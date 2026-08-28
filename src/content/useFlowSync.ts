@@ -10,6 +10,7 @@ import {
 } from './flow-dom';
 
 const PASTE_BTN_SIZE = 30;
+const PASTE_BTN_GAP = 6;
 
 interface PastePos {
   top: number;
@@ -22,6 +23,7 @@ interface FlowSyncState {
   panelOpen: boolean;
   triggerSummary: TriggerSummary | null;
   pastePos: PastePos | null;
+  clearRefsPos: PastePos | null;
 }
 
 const EMPTY_STATE: FlowSyncState = {
@@ -30,16 +32,23 @@ const EMPTY_STATE: FlowSyncState = {
   panelOpen: false,
   triggerSummary: null,
   pastePos: null,
+  clearRefsPos: null,
 };
 
 // Vertical anchor comes from the whole widget (so Frames mode's extra top
-// row is accounted for); horizontal stays centered on the text box itself.
-function computePastePos(box: HTMLElement, widget: HTMLElement | null): PastePos {
+// row is accounted for); horizontal centers the whole two-button group
+// (clear-references then paste, left to right) on the text box itself,
+// rather than centering the paste button alone and letting the pair hang
+// off to one side.
+function computePastePos(box: HTMLElement, widget: HTMLElement | null): { pastePos: PastePos; clearRefsPos: PastePos } {
   const topRect = (widget || box).getBoundingClientRect();
   const boxRect = box.getBoundingClientRect();
+  const top = topRect.top - PASTE_BTN_SIZE + 6;
+  const groupWidth = PASTE_BTN_SIZE * 2 + PASTE_BTN_GAP;
+  const groupLeft = boxRect.left + boxRect.width / 2 - groupWidth / 2;
   return {
-    top: topRect.top - PASTE_BTN_SIZE + 6,
-    left: boxRect.left + boxRect.width / 2 - PASTE_BTN_SIZE / 2,
+    clearRefsPos: { top, left: groupLeft },
+    pastePos: { top, left: groupLeft + PASTE_BTN_SIZE + PASTE_BTN_GAP },
   };
 }
 
@@ -73,12 +82,14 @@ export function useFlowSync(): FlowSyncState {
         return;
       }
 
+      const { pastePos, clearRefsPos } = computePastePos(box, widget);
       setState({
         box,
         widget,
         panelOpen: !!getPanel(),
         triggerSummary: readTriggerSummary(),
-        pastePos: computePastePos(box, widget),
+        pastePos,
+        clearRefsPos,
       });
     }
 
