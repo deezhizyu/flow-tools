@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
-import { DEFAULT_PREFS, sendMessage, type Point, type Prefs } from '../lib/messaging';
-import type { Amount, ScanResult, SectionId, VideoMode } from '../lib/models';
+import { DEFAULT_PREFS, sendMessage, type Point, type Prefs } from '../../lib/messaging';
+import type { Amount, ScanResult, SectionId, VideoMode } from '../../lib/models';
 
 // Local mirror of the background worker's persisted preferences. Writes
-// are optimistic, then reconciled with whatever the worker actually
-// persisted (it validates/normalizes before responding).
+// are optimistic, then reconciled with the worker's response.
 export function usePrefs() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
-  // Whether the initial GET_PREFS has resolved — callers that need to tell
-  // "no persisted value yet" apart from "still loading" (e.g. useModelScan
-  // deciding whether to trust an empty `scan`) wait on this first.
+  // Whether the initial GET_PREFS has resolved (e.g. useModelScan waits on
+  // this to tell "no persisted value yet" apart from "still loading").
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {

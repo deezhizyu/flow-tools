@@ -4,9 +4,8 @@
 import { AMOUNTS, SECTION_IDS, type ScanActiveState, type ScannedModel, type VideoModeScan } from '../lib/models';
 import { DEFAULT_PREFS, type Message, type Prefs } from '../lib/messaging';
 
-// Model labels are discovered live from Flow's own menu (see scanFlow in
-// the content script), so the background worker — which has no DOM access
-// — can't validate them against a known set. It only checks shape.
+// Model labels are discovered live from Flow's menu, so this worker (no
+// DOM access) can't validate against a known set — only checks shape.
 function isValidModelLabel(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length < 200;
 }
@@ -107,24 +106,11 @@ function isValidValue<K extends keyof Prefs>(key: K, value: unknown): value is P
 
 async function getPrefs(): Promise<Prefs> {
   const stored = (await chrome.storage.local.get(DEFAULT_PREFS)) as Prefs;
-  return {
-    nanoModel: isValidValue('nanoModel', stored.nanoModel) ? stored.nanoModel : DEFAULT_PREFS.nanoModel,
-    veoModel: isValidValue('veoModel', stored.veoModel) ? stored.veoModel : DEFAULT_PREFS.veoModel,
-    veoVideoMode: isValidValue('veoVideoMode', stored.veoVideoMode) ? stored.veoVideoMode : DEFAULT_PREFS.veoVideoMode,
-    omniVideoMode: isValidValue('omniVideoMode', stored.omniVideoMode) ? stored.omniVideoMode : DEFAULT_PREFS.omniVideoMode,
-    veoAmount: isValidValue('veoAmount', stored.veoAmount) ? stored.veoAmount : DEFAULT_PREFS.veoAmount,
-    omniAmount: isValidValue('omniAmount', stored.omniAmount) ? stored.omniAmount : DEFAULT_PREFS.omniAmount,
-    omniModel: isValidValue('omniModel', stored.omniModel) ? stored.omniModel : DEFAULT_PREFS.omniModel,
-    omniResolution: isValidValue('omniResolution', stored.omniResolution)
-      ? stored.omniResolution
-      : DEFAULT_PREFS.omniResolution,
-    overlayOpen: isValidValue('overlayOpen', stored.overlayOpen) ? stored.overlayOpen : DEFAULT_PREFS.overlayOpen,
-    buttonOffset: isValidValue('buttonOffset', stored.buttonOffset) ? stored.buttonOffset : DEFAULT_PREFS.buttonOffset,
-    sectionsExpanded: isValidValue('sectionsExpanded', stored.sectionsExpanded)
-      ? stored.sectionsExpanded
-      : DEFAULT_PREFS.sectionsExpanded,
-    scan: isValidValue('scan', stored.scan) ? stored.scan : DEFAULT_PREFS.scan,
-  };
+  const prefs = {} as Prefs;
+  for (const key of Object.keys(DEFAULT_PREFS) as (keyof Prefs)[]) {
+    (prefs as Record<keyof Prefs, unknown>)[key] = isValidValue(key, stored[key]) ? stored[key] : DEFAULT_PREFS[key];
+  }
+  return prefs;
 }
 
 async function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]): Promise<Prefs> {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { ScanResult } from '../lib/models';
-import { scanFlow } from './flow-dom';
+import { sleep } from '../../lib/async';
+import type { ScanResult } from '../../lib/models';
+import { scanFlow } from '../flow-dom';
 
 interface ModelScanState {
   scan: ScanResult | null;
@@ -8,15 +9,8 @@ interface ModelScanState {
   refresh: () => void;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// A scan that gets interrupted — most commonly the user closing Flow's
-// settings menu partway through, which the scan needs open to read from —
-// fails fast rather than grinding through every remaining model's full
-// wait (see the panel-closed checks in scanFlow/scanVideoMode), and is
-// simply retried here a few times rather than left stuck with nothing.
+// A scan interrupted by the user closing Flow's menu fails fast (see the
+// panel-closed checks in scanFlow/scanVideoMode) and is just retried.
 const MAX_ATTEMPTS = 3;
 
 async function scanWithRetries(): Promise<ScanResult | null> {
@@ -28,14 +22,8 @@ async function scanWithRetries(): Promise<ScanResult | null> {
   return null;
 }
 
-// Scans Flow's own settings panel for its currently available models and
-// their options once — the first time this account's Flow tab is ever
-// opened with the extension installed — rather than every time: the
-// result is handed to `onScanned` to persist, and a persisted scan handed
-// back in as `persistedScan` is adopted as-is instead of triggering
-// another live scan, since Flow's own model/tier lineup rarely changes
-// session to session. `refresh` re-runs the scan on demand (wired to the
-// overlay's refresh button) and always reports its result via `onScanned`.
+// Scans once per account rather than every load — a persisted scan is
+// adopted as-is; `refresh` re-runs on demand and reports via `onScanned`.
 export function useModelScan(
   ready: boolean,
   prefsLoaded: boolean,

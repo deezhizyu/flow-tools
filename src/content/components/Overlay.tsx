@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
-import type { Prefs } from '../lib/messaging';
+import { useMemo } from 'preact/hooks';
+import type { Prefs } from '../../lib/messaging';
 import {
   AMOUNTS,
   FALLBACK_NANO_MODELS,
@@ -12,9 +13,10 @@ import {
   type SectionId,
   type SectionsExpanded,
   type VideoMode,
-} from '../lib/models';
-import { textContainsModelWords } from './flow-dom';
-import { usePressed } from './usePressed';
+} from '../../lib/models';
+import { cx } from '../cx';
+import { textContainsModelWords } from '../flow-dom';
+import { usePressed } from '../hooks/usePressed';
 
 interface OverlayProps {
   prefs: Prefs;
@@ -44,20 +46,11 @@ interface OverlayProps {
   onOmniResolution: (modelLabel: string, resolution: string) => void;
 }
 
-function cx(...classes: Array<string | false | undefined>): string {
-  return classes.filter(Boolean).join(' ');
-}
-
-// Verbose suffixes Flow renders in full but that don't fit a 4-across
-// pill row — abbreviated for display only, matching is unaffected since
-// it always happens against the untouched raw label.
+// Display-only abbreviations — matching always uses the untouched label.
 const LABEL_ABBREVIATIONS: [RegExp, string][] = [[/\[Lower Priority\]/i, '[LP]']];
 
-// Strips a scanned label's base-name words down to just the distinguishing
-// part (e.g. "Veo 3.1 - Fast" + "Veo 3.1" -> "Fast") for compact button
-// text — falls back to the full label if nothing distinguishing is left.
-// Words are compared with punctuation stripped on both sides, so a base
-// like "Veo 3.1" (raw word "3.1") still matches the label's own "3.1".
+// Strips a label's base-name words for compact button text (e.g. "Veo 3.1
+// - Fast" + "Veo 3.1" -> "Fast"), falling back to the full label.
 function shortLabel(label: string, base: string): string {
   const normalize = (w: string) => w.toLowerCase().replace(/[^a-z0-9]/g, '');
   const baseWords = new Set(base.split(/\s+/).filter(Boolean).map(normalize));
@@ -74,6 +67,11 @@ function shortLabel(label: string, base: string): string {
 
 function groupModels(labels: string[], base: string): string[] {
   return labels.filter((l) => textContainsModelWords(l, base));
+}
+
+function resolveModels(labels: string[], base: string, fallback: string[]): string[] {
+  const matched = groupModels(labels, base);
+  return matched.length ? matched : fallback;
 }
 
 function Section(props: {
@@ -122,8 +120,7 @@ function PresetRow<T extends string>(props: {
   );
 }
 
-// Only worth a row once there's an actual choice — a single scanned/
-// fallback variant renders as this category's implicit selection instead.
+// Only worth a row once there's an actual choice.
 function ModelRow(props: { values: string[]; base: string; active: string | null; onSelect: (value: string) => void }) {
   if (props.values.length < 2) return null;
   const labels = Object.fromEntries(props.values.map((v) => [v, shortLabel(v, props.base)])) as Record<string, string>;
@@ -140,25 +137,25 @@ function VideoModeRow(props: { active: VideoMode; onSelect: (mode: VideoMode) =>
 export function Overlay(props: OverlayProps) {
   const { scan, prefs } = props;
 
-  const nanoModels = scan ? groupModels(scan.imageModels, NANO_BASE) : [];
-  const resolvedNanoModels = nanoModels.length ? nanoModels : FALLBACK_NANO_MODELS;
+  const resolvedNanoModels = useMemo(
+    () => resolveModels(scan?.imageModels ?? [], NANO_BASE, FALLBACK_NANO_MODELS),
+    [scan]
+  );
 
   const veoScanModels = scan?.video[prefs.veoVideoMode].models ?? [];
-  const veoModels = groupModels(
-    veoScanModels.map((m) => m.label),
-    VEO_BASE
+  const resolvedVeoModels = useMemo(
+    () => resolveModels(veoScanModels.map((m) => m.label), VEO_BASE, FALLBACK_VEO_MODELS),
+    [veoScanModels]
   );
-  const resolvedVeoModels = veoModels.length ? veoModels : FALLBACK_VEO_MODELS;
   const veoScanModel = veoScanModels.find((m) => m.label === prefs.veoModel);
   const veoDurations = veoScanModel?.durations ?? [];
   const veoResolutions = veoScanModel?.resolutions ?? [];
 
   const omniScanModels = scan?.video[prefs.omniVideoMode].models ?? [];
-  const resolvedOmniModels = groupModels(
-    omniScanModels.map((m) => m.label),
-    OMNI_BASE
+  const omniModels = useMemo(
+    () => resolveModels(omniScanModels.map((m) => m.label), OMNI_BASE, ['Omni Flash']),
+    [omniScanModels]
   );
-  const omniModels = resolvedOmniModels.length ? resolvedOmniModels : ['Omni Flash'];
   const omniModel = prefs.omniModel && omniModels.includes(prefs.omniModel) ? prefs.omniModel : omniModels[0];
   const omniScanModel = omniScanModels.find((m) => m.label === omniModel);
   const omniDurations = omniScanModel?.durations ?? [];

@@ -1,13 +1,10 @@
-import { usePressed } from './usePressed';
+import { cx } from '../cx';
+import { usePressed } from '../hooks/usePressed';
 
 interface RefreshButtonProps {
   scanning: boolean;
   onRefresh: () => void;
   visible: boolean;
-}
-
-function cx(...classes: Array<string | false | undefined>): string {
-  return classes.filter(Boolean).join(' ');
 }
 
 // Same round style as ToggleButton, sitting in the same bottom row right

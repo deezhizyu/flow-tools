@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   applyPromptMaxHeight,
+  findMainTrigger,
+  getFlowRouteMode,
   getPanel,
   getPromptBox,
   getPromptScrollContainer,
   getPromptWidget,
   readTriggerSummary,
   type TriggerSummary,
-} from './flow-dom';
+} from '../flow-dom';
 
 const PASTE_BTN_SIZE = 30;
 const PASTE_BTN_GAP = 6;
@@ -37,11 +39,42 @@ const EMPTY_STATE: FlowSyncState = {
   isEditPage: false,
 };
 
-// Vertical anchor comes from the whole widget (so Frames mode's extra top
-// row is accounted for); horizontal centers the whole two-button group
-// (clear-references then paste, left to right) on the text box itself,
-// rather than centering the paste button alone and letting the pair hang
-// off to one side.
+function posEqual(a: PastePos | null, b: PastePos | null): boolean {
+  if (a === b) return true;
+  return !!a && !!b && a.top === b.top && a.left === b.left;
+}
+
+function summaryEqual(a: TriggerSummary | null, b: TriggerSummary | null): boolean {
+  if (a === b) return true;
+  return (
+    !!a &&
+    !!b &&
+    a.count === b.count &&
+    a.duration === b.duration &&
+    a.resolution === b.resolution &&
+    a.isNano === b.isNano &&
+    a.isVideo === b.isVideo
+  );
+}
+
+// Preact skips the re-render when a setState updater returns the previous
+// reference — this tick fires on every DOM mutation/resize/scroll, most of
+// which change nothing the widget cares about.
+function statesEqual(a: FlowSyncState, b: FlowSyncState): boolean {
+  return (
+    a.box === b.box &&
+    a.widget === b.widget &&
+    a.panelOpen === b.panelOpen &&
+    a.isEditPage === b.isEditPage &&
+    summaryEqual(a.triggerSummary, b.triggerSummary) &&
+    posEqual(a.pastePos, b.pastePos) &&
+    posEqual(a.clearRefsPos, b.clearRefsPos)
+  );
+}
+
+// Vertical anchor comes from the whole widget (accounts for Frames mode's
+// extra row); horizontal centers the clear-references + paste pair on the
+// text box itself.
 function computePastePos(box: HTMLElement, widget: HTMLElement | null): { pastePos: PastePos; clearRefsPos: PastePos } {
   const topRect = (widget || box).getBoundingClientRect();
   const boxRect = box.getBoundingClientRect();
@@ -54,8 +87,24 @@ function computePastePos(box: HTMLElement, widget: HTMLElement | null): { pasteP
   };
 }
 
-// Tracks Flow's prompt box/widget/settings panel, re-syncing on every
-// relevant DOM mutation, resize, or scroll.
+function readState(): FlowSyncState {
+  const box = getPromptBox();
+  if (!box) return EMPTY_STATE;
+
+  const trigger = findMainTrigger();
+  const widget = getPromptWidget(box, trigger);
+  const { pastePos, clearRefsPos } = computePastePos(box, widget);
+  return {
+    box,
+    widget,
+    panelOpen: !!getPanel(),
+    triggerSummary: readTriggerSummary(trigger),
+    pastePos,
+    clearRefsPos,
+    isEditPage: getFlowRouteMode() === 'edit',
+  };
+}
+
 export function useFlowSync(): FlowSyncState {
   const [state, setState] = useState<FlowSyncState>(EMPTY_STATE);
   const observedWidget = useRef<HTMLElement | null>(null);
@@ -65,43 +114,21 @@ export function useFlowSync(): FlowSyncState {
     let tickScheduled = false;
 
     function tick() {
-      const box = getPromptBox();
-      const widget = box ? getPromptWidget(box) : null;
+      const next = readState();
 
-      // Flow re-renders the widget's DOM as it switches modes (e.g.
-      // toggling Frames), so the ResizeObserver target must be re-picked
-      // whenever the widget element itself changes — observing a node
-      // that got replaced silently stops firing.
-      if (widget !== observedWidget.current) {
+      // Flow remounts the widget's DOM on mode switches, so the observed
+      // node needs re-picking whenever the widget element itself changes.
+      if (next.widget !== observedWidget.current) {
         resizeObserverRef.current?.disconnect();
-        observedWidget.current = widget;
-        if (widget) resizeObserverRef.current?.observe(widget);
+        observedWidget.current = next.widget;
+        if (next.widget) resizeObserverRef.current?.observe(next.widget);
       }
-      applyPromptMaxHeight(box ? getPromptScrollContainer(box) : null);
+      applyPromptMaxHeight(next.box ? getPromptScrollContainer(next.box) : null);
 
-      if (!box) {
-        setState(EMPTY_STATE);
-        return;
-      }
-
-      const { pastePos, clearRefsPos } = computePastePos(box, widget);
-      setState({
-        box,
-        widget,
-        panelOpen: !!getPanel(),
-        triggerSummary: readTriggerSummary(),
-        pastePos,
-        clearRefsPos,
-        // An open image/video's own edit view — the quick-settings overlay
-        // has nothing to apply to there, but paste/clear-references still
-        // act on the same prompt box, so those stay.
-        isEditPage: location.pathname.includes('/edit/'),
-      });
+      setState((prev) => (statesEqual(prev, next) ? prev : next));
     }
 
-    // Mutations/resizes tend to arrive in bursts (one Flow state change
-    // can touch several nodes), so coalesce them into a single tick per
-    // frame instead of running the full sync once per individual event.
+    // Mutations/resizes arrive in bursts — coalesce into one tick per frame.
     function scheduleTick() {
       if (tickScheduled) return;
       tickScheduled = true;

@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-
-interface Point {
-  x: number;
-  y: number;
-}
+import type { Point } from '../../lib/messaging';
 
 const DRAG_THRESHOLD = 4;
 
-// Tracks a drag offset for a handle element, applied by the caller as a
-// transform on whatever container should move with it. Starts from
-// `initialOffset` (e.g. a persisted position loaded asynchronously) and
-// keeps adopting it as it arrives — until the user actually drags, after
-// which the drag's own offset wins and `onDragEnd` reports it back for the
-// caller to persist. onPointerUp also returns whether the pointer moved
-// past the threshold, so the handle can tell a drag apart from a plain
-// click and skip its click action for one.
+// Tracks a drag offset for a handle element. Adopts `initialOffset` (e.g.
+// a position loaded asynchronously) as it arrives until the user actually
+// drags, after which the drag's own offset wins. onPointerUp returns
+// whether the pointer moved past the threshold, so the caller can tell a
+// drag apart from a plain click.
 export function useDraggable(initialOffset: Point, onDragEnd: (offset: Point) => void) {
   const [offset, setOffset] = useState<Point>(initialOffset);
   const offsetRef = useRef(initialOffset);

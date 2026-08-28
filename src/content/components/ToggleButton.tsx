@@ -1,4 +1,5 @@
-import { usePressed } from './usePressed';
+import { cx } from '../cx';
+import { usePressed } from '../hooks/usePressed';
 
 interface ToggleButtonProps {
   open: boolean;
@@ -23,7 +24,7 @@ export function ToggleButton(props: ToggleButtonProps) {
     <button
       type="button"
       id="fqs-toggle-btn"
-      class={pressed ? 'fqs-round-btn fqs-pressed' : 'fqs-round-btn'}
+      class={cx('fqs-round-btn', pressed && 'fqs-pressed')}
       title={props.open ? 'Hide overlay' : 'Show overlay'}
       onPointerDown={props.onPointerDown}
       onPointerMove={props.onPointerMove}
