@@ -12,6 +12,8 @@ function isValidValue<K extends keyof Prefs>(key: K, value: unknown): value is P
       return (VEO_VARIANTS as unknown[]).includes(value);
     case 'omniAmount':
       return (AMOUNTS as unknown[]).includes(value);
+    case 'overlayOpen':
+      return typeof value === 'boolean';
     default:
       return false;
   }
@@ -23,6 +25,7 @@ async function getPrefs(): Promise<Prefs> {
     nanoModel: isValidValue('nanoModel', stored.nanoModel) ? stored.nanoModel : DEFAULT_PREFS.nanoModel,
     veoModel: isValidValue('veoModel', stored.veoModel) ? stored.veoModel : DEFAULT_PREFS.veoModel,
     omniAmount: isValidValue('omniAmount', stored.omniAmount) ? stored.omniAmount : DEFAULT_PREFS.omniAmount,
+    overlayOpen: isValidValue('overlayOpen', stored.overlayOpen) ? stored.overlayOpen : DEFAULT_PREFS.overlayOpen,
   };
 }
 

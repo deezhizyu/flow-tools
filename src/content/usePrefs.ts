@@ -23,5 +23,6 @@ export function usePrefs() {
     setNanoModel: (value: NanoModelKey) => update({ type: 'SET_PREF', key: 'nanoModel', value }),
     setVeoModel: (value: VeoModelKey) => update({ type: 'SET_PREF', key: 'veoModel', value }),
     setOmniAmount: (value: Amount) => update({ type: 'SET_PREF', key: 'omniAmount', value }),
+    setOverlayOpen: (value: boolean) => update({ type: 'SET_PREF', key: 'overlayOpen', value }),
   };
 }
