@@ -1,9 +1,7 @@
 name: Build and Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,11 +28,16 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Read version
+        id: pkg
+        run: echo "version=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Zip extension
-        run: cd dist && zip -r ../flow-tools-${{ github.ref_name }}.zip .
+        run: cd dist && zip -r ../flow-tools-${{ steps.pkg.outputs.version }}.zip .
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: flow-tools-${{ github.ref_name }}.zip
+          tag_name: ${{ steps.pkg.outputs.version }}
+          files: flow-tools-${{ steps.pkg.outputs.version }}.zip
           generate_release_notes: true
