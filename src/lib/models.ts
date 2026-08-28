@@ -13,6 +13,11 @@ export const AMOUNTS: Amount[] = ['x1', 'x2', 'x3', 'x4'];
 
 export type VideoMode = 'frames' | 'ingredients';
 
+// Overlay's collapsible groups — id order also drives their persisted
+// open/closed shape below.
+export type SectionId = 'nano' | 'veo' | 'omni';
+export type SectionsExpanded = Record<SectionId, boolean>;
+
 // Base names used only to bucket scanned model labels (e.g. "Veo 3.1 -
 // Fast") into the right overlay section — matched loosely by word set, so
 // version-number/suffix drift (e.g. "Omni 1.1 Flash" -> "Omni 1.2 Flash")

@@ -12,7 +12,7 @@ function nextPaint(): Promise<void> {
 
 async function waitFor<T>(
   fn: () => T | null | undefined,
-  { timeout = 2500, interval = 40 }: { timeout?: number; interval?: number } = {}
+  { timeout = 2500, interval = 20 }: { timeout?: number; interval?: number } = {}
 ): Promise<T | null> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -161,9 +161,14 @@ function triggerIcon(btn: HTMLButtonElement): string | null {
   return btn.querySelector('i')?.textContent?.trim() || null;
 }
 
-function clickTriggerByIcon(panel: HTMLElement, iconName: string): void {
+// Returns whether it actually clicked something (vs. that row already
+// being the active one) — callers use this to skip the settle wait
+// entirely when nothing was there to unsettle in the first place.
+function clickTriggerByIcon(panel: HTMLElement, iconName: string): boolean {
   const btn = getTriggers(panel).find((b) => triggerIcon(b) === iconName);
-  if (btn && btn.getAttribute('data-state') !== 'active') fullClick(btn);
+  if (!btn || btn.getAttribute('data-state') === 'active') return false;
+  fullClick(btn);
+  return true;
 }
 
 function clickTriggerByText(panel: HTMLElement, text: string): void {
@@ -325,7 +330,7 @@ async function withPanel<T>(work: (panel: HTMLElement) => Promise<T>): Promise<T
 
     const result = await work(panel);
 
-    await sleep(80);
+    await sleep(50);
     trigger = findMainTrigger() || trigger;
     if (trigger && getPanel()) fullClick(trigger);
     return result;
@@ -486,9 +491,11 @@ async function restoreActiveState(panel: HTMLElement, snap: ScanActiveState): Pr
 }
 
 async function scanVideoMode(panel: HTMLElement, mode: VideoMode): Promise<{ panel: HTMLElement; scan: VideoModeScan }> {
-  clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
-  panel = (await waitFor(getPanel)) || panel;
-  panel = await waitForStableTriggers(panel);
+  const modeSwitched = clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
+  if (modeSwitched) {
+    panel = (await waitFor(getPanel)) || panel;
+    panel = await waitForStableTriggers(panel);
+  }
 
   const names = await scanModelNames(panel);
   const models: ScannedModel[] = [];
