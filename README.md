@@ -17,7 +17,7 @@ Collapsible quick-select buttons for Nano Banana, Veo 3.1, and Omni Flash on [Go
 - [x] Collapsible sections, remembers your picks
 - [x] Live scan of Flow's own panel to discover models/durations/resolutions for your account tier
 - [x] Limit prompt textarea height to 100px
-- [ ] Remove slow loading blur fade for generations
+- [x] Remove slow loading blur fade for generations
 - [ ] Advanced settings page
 
 ## How to install
