@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
-  applyWidgetMaxHeight,
+  applyPromptMaxHeight,
   getPanel,
   getPromptBox,
+  getPromptScrollContainer,
   getPromptWidget,
   readTriggerSummary,
   type TriggerSummary,
@@ -65,7 +66,7 @@ export function useFlowSync(): FlowSyncState {
         observedWidget.current = widget;
         if (widget) resizeObserverRef.current?.observe(widget);
       }
-      applyWidgetMaxHeight(widget);
+      applyPromptMaxHeight(box ? getPromptScrollContainer(box) : null);
 
       if (!box) {
         setState(EMPTY_STATE);

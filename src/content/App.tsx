@@ -49,10 +49,24 @@ function categoryOf(label: string | null): 'veo' | 'omni' | null {
 
 export function App() {
   const { box, panelOpen, triggerSummary, pastePos } = useFlowSync();
-  const { prefs, setNanoModel, setVeoModel, setVeoVideoMode, setOmniVideoMode, setVeoAmount, setOmniAmount, setOverlayOpen } =
-    usePrefs();
-  const { offset, onPointerDown, onPointerMove, onPointerUp } = useDraggable();
-  const { scan, scanning, refresh } = useModelScan(!!box);
+  const {
+    prefs,
+    loaded: prefsLoaded,
+    setNanoModel,
+    setVeoModel,
+    setOmniModel,
+    setOmniResolution,
+    setVeoVideoMode,
+    setOmniVideoMode,
+    setVeoAmount,
+    setOmniAmount,
+    setOverlayOpen,
+    setButtonOffset,
+    setSectionExpanded,
+    setScan,
+  } = usePrefs();
+  const { offset, onPointerDown, onPointerMove, onPointerUp } = useDraggable(prefs.buttonOffset, setButtonOffset);
+  const { scan, scanning, refresh } = useModelScan(!!box, prefsLoaded, prefs.scan, setScan);
 
   // Which video model (Veo vs Omni Flash) is actually live in Flow right
   // now, and which Frames/Ingredients mode it's in — the collapsed
@@ -101,6 +115,16 @@ export function App() {
     }
   }
 
+  // Unlike Veo's model, Omni's quality/variant pick is just remembered —
+  // it's never applied to Flow live even when Omni is the active tab. Omni
+  // normally only has one variant, so this mainly matters for tiers that
+  // expose more; there's no way to preview mid-generation which the
+  // account will actually have, so it's saved for whenever it's next used
+  // rather than poking Flow's UI right away.
+  function handleOmniModel(label: string) {
+    setOmniModel(label);
+  }
+
   function handleVeoMode(mode: VideoMode) {
     setVeoVideoMode(mode);
     if (veoActive) {
@@ -127,6 +151,18 @@ export function App() {
     if (omniActive) void applyAmount(amount);
   }
 
+  // Same rule as amount: save the pick, and only push it to Flow live if
+  // Omni is actually the active tab right now — previously this applied
+  // unconditionally, so clicking a resolution while e.g. Veo was showing
+  // would instantly switch Flow's live tab/model out from under the user.
+  function handleOmniResolution(modelLabel: string, resolution: string) {
+    setOmniResolution(resolution);
+    if (omniActive) {
+      applyPreset({ tabIcon: 'videocam', mode: prefs.omniVideoMode, modelName: modelLabel, subText: resolution });
+      setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
+    }
+  }
+
   return (
     <>
       <div id="fqs-widget" class={widgetClass} style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
@@ -143,6 +179,8 @@ export function App() {
             scan={scan}
             scanning={scanning}
             onRefresh={refresh}
+            sectionsExpanded={prefs.sectionsExpanded}
+            onToggleSection={(id) => setSectionExpanded(id, !prefs.sectionsExpanded[id])}
             nanoActive={nanoActive}
             veoActive={veoActive}
             omniActive={omniActive}
@@ -151,6 +189,7 @@ export function App() {
             resolution={triggerSummary?.resolution ?? null}
             onSetNanoModel={handleNanoModel}
             onSetVeoModel={handleVeoModel}
+            onSetOmniModel={handleOmniModel}
             onSetVeoMode={handleVeoMode}
             onSetOmniMode={handleOmniMode}
             onSetVeoAmount={handleVeoAmount}
@@ -175,15 +214,16 @@ export function App() {
                 tabIcon: 'videocam',
                 mode: prefs.omniVideoMode,
                 modelName: modelLabel,
+                // Switching into Omni resets its resolution row to whatever
+                // Flow last used for it — reassert the saved pick here too,
+                // or it silently reverts even though it was never touched.
+                resolution: prefs.omniResolution ?? undefined,
                 subText: duration,
                 amount: prefs.omniAmount,
               });
               setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
             }}
-            onOmniResolution={(modelLabel, resolution) => {
-              applyPreset({ tabIcon: 'videocam', mode: prefs.omniVideoMode, modelName: modelLabel, subText: resolution });
-              setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
-            }}
+            onOmniResolution={handleOmniResolution}
           />
         )}
       </div>

@@ -1,6 +1,14 @@
 // Drives Google Flow's own settings panel and prompt box programmatically.
 
-import { NANO_BASE, type Amount, type VideoMode } from '../lib/models';
+import {
+  NANO_BASE,
+  type Amount,
+  type ScanActiveState,
+  type ScannedModel,
+  type ScanResult,
+  type VideoMode,
+  type VideoModeScan,
+} from '../lib/models';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -10,17 +18,37 @@ function nextPaint(): Promise<void> {
   return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 }
 
-async function waitFor<T>(
-  fn: () => T | null | undefined,
-  { timeout = 2500, interval = 20 }: { timeout?: number; interval?: number } = {}
-): Promise<T | null> {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    const val = fn();
-    if (val) return val;
-    await sleep(interval);
-  }
-  return null;
+// Resolves the instant `fn` starts returning a truthy value, rather than
+// polling on a fixed interval and paying up to that interval's worth of
+// latency on every single wait — every condition here is driven by Flow's
+// own DOM (a panel/menu appearing, a label updating), so a MutationObserver
+// on the whole document reacts as fast as the browser can tell us
+// something changed. Checked once immediately (covers a condition that's
+// already true, or one whose change wouldn't itself trigger a mutation),
+// then re-checked on every subsequent mutation, with `timeout` as a safety
+// net against a condition that never arrives.
+function waitFor<T>(fn: () => T | null | undefined, { timeout = 2500 }: { timeout?: number } = {}): Promise<T | null> {
+  return new Promise((resolve) => {
+    const immediate = fn();
+    if (immediate) {
+      resolve(immediate);
+      return;
+    }
+    let done = false;
+    const finish = (val: T | null) => {
+      if (done) return;
+      done = true;
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve(val);
+    };
+    const observer = new MutationObserver(() => {
+      const val = fn();
+      if (val) finish(val);
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+    const timer = setTimeout(() => finish(fn() ?? null), timeout);
+  });
 }
 
 function isVisible(el: Element | null): boolean {
@@ -33,41 +61,53 @@ function isVisible(el: Element | null): boolean {
 // a beat after the model button's own label updates — reading a scan
 // immediately after selectModelIfNeeded resolves can catch that row
 // mid-remount (e.g. see it as empty right before its duration options
-// appear). Rather than guess a fixed delay, poll until the trigger row's
-// text stops changing between reads, so scanning waits exactly as long as
-// each model's re-render actually takes — including models that settle on
-// having no duration row at all, which is itself a real, final state. The
-// quiet/interval windows are kept tight since this runs once per scanned
-// model — correctness (never reading mid-remount) matters more here than
-// shaving a few extra ms, but scanning a dozen models makes every
-// millisecond of slack multiply.
-async function waitForStableTriggers(
+// appear). Rather than guess a fixed delay, watch mutations under the
+// panel and resolve once the trigger row's text stops changing for `quiet`
+// ms, so scanning waits exactly as long as each model's re-render actually
+// takes — including models that settle on having no duration row at all,
+// which is itself a real, final state. `timeout` is a hard ceiling in case
+// something never settles.
+function waitForStableTriggers(
   panel: HTMLElement,
-  { timeout = 700, quiet = 60, interval = 20 }: { timeout?: number; quiet?: number; interval?: number } = {}
+  { timeout = 700, quiet = 60 }: { timeout?: number; quiet?: number } = {}
 ): Promise<HTMLElement> {
   const readTriggers = (p: HTMLElement) =>
     Array.from(p.querySelectorAll<HTMLButtonElement>('.flow_tab_slider_trigger'))
       .map((b) => `${b.getAttribute('data-state')}:${b.textContent!.trim()}`)
       .join('|');
 
-  const start = Date.now();
-  let current = panel;
-  let last = readTriggers(current);
-  let lastChange = Date.now();
+  return new Promise((resolve) => {
+    let current = panel;
+    let last = readTriggers(current);
+    let done = false;
+    let quietTimer: ReturnType<typeof setTimeout>;
 
-  while (Date.now() - start < timeout) {
-    await sleep(interval);
-    const p = getPanel() || current;
-    const now = readTriggers(p);
-    current = p;
-    if (now !== last) {
-      last = now;
-      lastChange = Date.now();
-    } else if (Date.now() - lastChange >= quiet) {
-      return current;
-    }
-  }
-  return current;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      observer.disconnect();
+      clearTimeout(quietTimer);
+      clearTimeout(overallTimer);
+      resolve(current);
+    };
+    const armQuietTimer = () => {
+      clearTimeout(quietTimer);
+      quietTimer = setTimeout(finish, quiet);
+    };
+
+    const observer = new MutationObserver(() => {
+      const p = getPanel() || current;
+      const now = readTriggers(p);
+      current = p;
+      if (now !== last) {
+        last = now;
+        armQuietTimer();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+    armQuietTimer();
+    const overallTimer = setTimeout(finish, timeout);
+  });
 }
 
 // Flow's settings panel is built on Radix UI, which opens on pointerdown
@@ -117,16 +157,6 @@ export function getPromptWidget(box: HTMLElement): HTMLElement {
     el = el.parentElement;
   }
   return el || getPromptContainer(box);
-}
-
-// The prompt bar's "clear" (X) button only exists while the box has
-// content; its icon ligature is literally "close".
-function findClearButton(container: HTMLElement): HTMLButtonElement | null {
-  return (
-    Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find(
-      (b) => b.querySelector('i')?.textContent?.trim() === 'close'
-    ) || null
-  );
 }
 
 // The main settings trigger (bottom toolbar) is the only aria-haspopup
@@ -344,11 +374,16 @@ export interface ApplyPresetOptions {
   tabIcon: 'image' | 'videocam';
   mode?: VideoMode; // required to pick a video model's variant/duration correctly
   modelName: string;
+  // Resolution to (re)assert right after selecting the model — needed
+  // because switching models resets the resolution row to whatever Flow
+  // last used for it, so a saved resolution preference has to be replayed
+  // here every time, not just when the resolution row itself was clicked.
+  resolution?: string;
   subText?: Amount | string; // duration or output-count row to click
   amount?: Amount; // second click after subText, e.g. duration then count
 }
 
-export async function applyPreset({ tabIcon, mode, modelName, subText, amount }: ApplyPresetOptions): Promise<void> {
+export async function applyPreset({ tabIcon, mode, modelName, resolution, subText, amount }: ApplyPresetOptions): Promise<void> {
   await withPanel(async (openedPanel) => {
     clickTriggerByIcon(openedPanel, tabIcon);
     let panel = (await waitFor(getPanel)) || openedPanel;
@@ -360,6 +395,17 @@ export async function applyPreset({ tabIcon, mode, modelName, subText, amount }:
 
     await selectModelIfNeeded(panel, modelName);
     panel = (await waitFor(getPanel)) || panel;
+
+    if (resolution) {
+      // Same remount concern as subText below — poll rather than assume.
+      const fallbackPanel = panel;
+      const resolutionBtn = await waitFor(() => {
+        const p = getPanel() || fallbackPanel;
+        return getTriggers(p).find((b) => b.textContent!.trim() === resolution) || null;
+      });
+      if (resolutionBtn) fullClick(resolutionBtn);
+      panel = getPanel() || panel;
+    }
 
     if (subText) {
       // The duration/count row can re-render a beat after the model switch
@@ -410,33 +456,9 @@ export async function applyVideoMode(mode: VideoMode): Promise<void> {
 // support picking a length, this opens Flow's settings panel and reads it
 // directly — so the overlay always matches what's actually offered on the
 // current account's subscription tier, and survives Flow adding/removing/
-// renaming variants without needing a code change here.
-
-export interface ScannedModel {
-  label: string; // raw label exactly as Flow renders it, e.g. "Veo 3.1 - Fast"
-  durations: string[]; // e.g. ["4s","6s","8s"] — empty if this model has no length option
-  resolutions: string[]; // e.g. ["360p","720p"] — empty if this model has no resolution option
-}
-
-export interface VideoModeScan {
-  models: ScannedModel[];
-}
-
-export interface ScanActiveState {
-  tab: 'image' | 'videocam';
-  mode: VideoMode | null; // null when tab is 'image'
-  modelLabel: string | null;
-  resolution: string | null;
-  duration: string | null;
-  amount: string | null;
-}
-
-export interface ScanResult {
-  imageModels: string[];
-  video: Record<VideoMode, VideoModeScan>;
-  active: ScanActiveState;
-  scannedAt: number;
-}
+// renaming variants without needing a code change here. Its result type
+// (ScanResult and friends) lives in lib/models.ts so the background worker
+// can validate a persisted scan without pulling in this file's DOM code.
 
 function snapshotActiveState(panel: HTMLElement): ScanActiveState {
   const tab: 'image' | 'videocam' =
@@ -500,6 +522,11 @@ async function scanVideoMode(panel: HTMLElement, mode: VideoMode): Promise<{ pan
   const names = await scanModelNames(panel);
   const models: ScannedModel[] = [];
   for (const name of names) {
+    // The user closing Flow's own menu mid-scan is the normal way this
+    // gets interrupted — bail out of the remaining models immediately
+    // rather than let each one grind through its own full wait for a
+    // panel that isn't coming back (scanFlow's retry picks it up again).
+    if (!getPanel()) break;
     const switched = await selectModelIfNeeded(panel, name);
     panel = (await waitFor(getPanel)) || panel;
     if (switched) panel = await waitForStableTriggers(panel);
@@ -519,15 +546,20 @@ export async function scanFlow(): Promise<ScanResult | null> {
 
     clickTriggerByIcon(panel, 'image');
     panel = (await waitFor(getPanel)) || panel;
+    if (!getPanel()) return null;
     const imageModels = await scanModelNames(panel);
+    if (!getPanel()) return null;
 
     clickTriggerByIcon(panel, 'videocam');
     panel = (await waitFor(getPanel)) || panel;
+    if (!getPanel()) return null;
 
     const framesResult = await scanVideoMode(panel, 'frames');
     panel = framesResult.panel;
+    if (!getPanel()) return null;
     const ingredientsResult = await scanVideoMode(panel, 'ingredients');
     panel = ingredientsResult.panel;
+    if (!getPanel()) return null;
 
     await restoreActiveState(panel, snap);
 
@@ -542,12 +574,87 @@ export async function scanFlow(): Promise<ScanResult | null> {
   return result ?? null;
 }
 
+// Resolves on the next selectionchange event, or after `timeout` ms if none
+// arrives. This editor (Slate) mirrors its own internal selection from the
+// DOM's selectionchange event rather than reading window.getSelection()
+// live — a script-set Range only reaches it once that event actually
+// fires, which is a separately queued task, not synchronous with the Range
+// change. Skipping this wait is exactly what made earlier attempts here
+// silently no-op: the editor still saw its previous (or no) selection by
+// the time the next beforeinput arrived.
+function waitForSelectionChange(timeout = 200): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      document.removeEventListener('selectionchange', done);
+      clearTimeout(timer);
+      resolve();
+    };
+    document.addEventListener('selectionchange', done);
+    const timer = setTimeout(done, timeout);
+  });
+}
+
+// Selects the box's entire text — spanning from the start of its first
+// text node to the end of its last, not the box's own container-level
+// boundary (selectNodeContents(box) points at child-index boundaries
+// rather than into actual text, which the editor doesn't map correctly) —
+// so a single delete below can clear it in one shot instead of one
+// "deleteContentBackward" beforeinput per character. No-ops if the box has
+// no text yet.
+function selectAllText(box: HTMLElement): Promise<void> {
+  const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) textNodes.push(node as Text);
+  if (!textNodes.length) return Promise.resolve();
+
+  const first = textNodes[0];
+  const last = textNodes[textNodes.length - 1];
+  const range = document.createRange();
+  range.setStart(first, 0);
+  range.setEnd(last, last.length);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  const selectionChanged = waitForSelectionChange();
+  selection?.addRange(range);
+  return selectionChanged;
+}
+
+function dispatchDeleteBackward(box: HTMLElement): void {
+  box.dispatchEvent(
+    new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      inputType: 'deleteContentBackward',
+    })
+  );
+}
+
+// Removes the box's own existing text: selects all of it (see
+// selectAllText) then fires one "deleteContentBackward" beforeinput, same
+// as pressing Backspace once with everything selected — rather than
+// Flow's own bar-wide "clear" (X) button, which also wipes any uploaded
+// ingredients/frame images well beyond just the prompt text. A leftover
+// check with one retry covers the rare case the editor doesn't clear the
+// full selection in one go.
+async function clearPromptText(box: HTMLElement): Promise<void> {
+  await selectAllText(box);
+  dispatchDeleteBackward(box);
+  await nextPaint();
+
+  if (box.textContent) {
+    await selectAllText(box);
+    dispatchDeleteBackward(box);
+    await nextPaint();
+  }
+}
+
 // The prompt box is a controlled rich-text editor that ignores
-// document.execCommand and synthetic "paste" events, and only accepts a
-// "beforeinput" event with inputType "insertText" — which always inserts
-// at the editor's own tracked cursor, not a script-set Selection/Range. So
-// existing content is cleared via Flow's own "X" button first, then the
-// new text is inserted into the now-empty, cursor-at-start box.
+// document.execCommand and synthetic "paste" events, and only accepts
+// "beforeinput" events (inputType "insertText" to type, "deleteContentBackward"
+// to backspace) applied at the editor's own tracked selection. So existing
+// text is cleared via clearPromptText above before the new text is
+// inserted.
 export async function pasteFromClipboard(): Promise<void> {
   if (busy) return;
   busy = true;
@@ -562,18 +669,14 @@ export async function pasteFromClipboard(): Promise<void> {
     }
     if (!text) return;
 
-    const container = getPromptContainer(box);
-    const clearBtn = findClearButton(container);
-    if (clearBtn) {
-      fullClick(clearBtn);
-      await waitFor(() => !findClearButton(container));
-    }
-
     box.focus();
     // On the box's very first focus after a fresh page load, Flow's editor
     // hasn't finished initializing yet and drops a synchronous beforeinput
     // — waiting two frames lets that initialization land first.
     await nextPaint();
+
+    await clearPromptText(box);
+
     box.dispatchEvent(
       new InputEvent('beforeinput', {
         bubbles: true,
@@ -631,11 +734,19 @@ export function isNanoActive(summary: TriggerSummary | null): boolean {
   return !!summary && summary.isNano;
 }
 
-// Caps the widget (menu button + textarea + other button, stacked) at
-// 150px so a long prompt scrolls instead of growing the whole bar. Flow's
-// own re-renders can overwrite this inline style, so it's reapplied every
-// tick rather than set once.
-export function applyWidgetMaxHeight(widget: HTMLElement | null): void {
-  if (!widget) return;
-  widget.style.maxHeight = '150px';
+// The prompt box's own scroll wrapper — the ancestor Flow marks with
+// data-scroll-state, one level above the contenteditable div itself —
+// wraps just the textbox, not the wider Frames/Ingredients row above it.
+// Capping height there instead of on the whole widget lets a long prompt
+// scroll internally without cutting off the ingredients thumbnails.
+export function getPromptScrollContainer(box: HTMLElement): HTMLElement | null {
+  return box.parentElement?.closest('[data-scroll-state]') ?? null;
+}
+
+// Caps the prompt box's scroll container at 150px so a long prompt scrolls
+// instead of growing the whole bar. Flow's own re-renders can overwrite
+// this inline style, so it's reapplied every tick rather than set once.
+export function applyPromptMaxHeight(container: HTMLElement | null): void {
+  if (!container) return;
+  container.style.maxHeight = '100px';
 }

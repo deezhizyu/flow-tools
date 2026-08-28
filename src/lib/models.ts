@@ -17,6 +17,7 @@ export type VideoMode = 'frames' | 'ingredients';
 // open/closed shape below.
 export type SectionId = 'nano' | 'veo' | 'omni';
 export type SectionsExpanded = Record<SectionId, boolean>;
+export const SECTION_IDS: SectionId[] = ['nano', 'veo', 'omni'];
 
 // Base names used only to bucket scanned model labels (e.g. "Veo 3.1 -
 // Fast") into the right overlay section — matched loosely by word set, so
@@ -30,3 +31,33 @@ export const OMNI_BASE = 'Omni Flash';
 // resolves — replaced with live scan data as soon as it's available.
 export const FALLBACK_NANO_MODELS = ['Nano Banana Pro', 'Nano Banana 2', 'Nano Banana 2 Lite'];
 export const FALLBACK_VEO_MODELS = ['Veo 3.1 - Quality', 'Veo 3.1 - Fast', 'Veo 3.1 - Lite'];
+
+// Shape of a live scan of Flow's own settings panel (see scanFlow in
+// flow-dom.ts) — defined here rather than alongside scanFlow itself so the
+// background worker can validate a persisted scan's shape without pulling
+// in flow-dom.ts's DOM-manipulation code.
+export interface ScannedModel {
+  label: string; // raw label exactly as Flow renders it, e.g. "Veo 3.1 - Fast"
+  durations: string[]; // e.g. ["4s","6s","8s"] — empty if this model has no length option
+  resolutions: string[]; // e.g. ["360p","720p"] — empty if this model has no resolution option
+}
+
+export interface VideoModeScan {
+  models: ScannedModel[];
+}
+
+export interface ScanActiveState {
+  tab: 'image' | 'videocam';
+  mode: VideoMode | null; // null when tab is 'image'
+  modelLabel: string | null;
+  resolution: string | null;
+  duration: string | null;
+  amount: string | null;
+}
+
+export interface ScanResult {
+  imageModels: string[];
+  video: Record<VideoMode, VideoModeScan>;
+  active: ScanActiveState;
+  scannedAt: number;
+}

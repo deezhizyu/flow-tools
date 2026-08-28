@@ -1,8 +1,19 @@
 import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
 import type { Prefs } from '../lib/messaging';
-import { AMOUNTS, FALLBACK_NANO_MODELS, FALLBACK_VEO_MODELS, NANO_BASE, OMNI_BASE, VEO_BASE, type Amount, type VideoMode } from '../lib/models';
-import { textContainsModelWords, type ScanResult } from './flow-dom';
+import {
+  AMOUNTS,
+  FALLBACK_NANO_MODELS,
+  FALLBACK_VEO_MODELS,
+  NANO_BASE,
+  OMNI_BASE,
+  VEO_BASE,
+  type Amount,
+  type ScanResult,
+  type SectionId,
+  type SectionsExpanded,
+  type VideoMode,
+} from '../lib/models';
+import { textContainsModelWords } from './flow-dom';
 import { usePressed } from './usePressed';
 
 interface OverlayProps {
@@ -10,6 +21,8 @@ interface OverlayProps {
   scan: ScanResult | null;
   scanning: boolean;
   onRefresh: () => void;
+  sectionsExpanded: SectionsExpanded;
+  onToggleSection: (id: SectionId) => void;
 
   nanoActive: boolean;
   veoActive: boolean;
@@ -20,6 +33,7 @@ interface OverlayProps {
 
   onSetNanoModel: (label: string) => void;
   onSetVeoModel: (label: string) => void;
+  onSetOmniModel: (label: string) => void;
   onSetVeoMode: (mode: VideoMode) => void;
   onSetOmniMode: (mode: VideoMode) => void;
   onSetVeoAmount: (value: Amount) => void;
@@ -30,8 +44,6 @@ interface OverlayProps {
   onOmniDuration: (modelLabel: string, duration: string) => void;
   onOmniResolution: (modelLabel: string, resolution: string) => void;
 }
-
-type SectionId = 'nano' | 'veo' | 'omni';
 
 function cx(...classes: Array<string | false | undefined>): string {
   return classes.filter(Boolean).join(' ');
@@ -127,13 +139,6 @@ function VideoModeRow(props: { active: VideoMode; onSelect: (mode: VideoMode) =>
 }
 
 export function Overlay(props: OverlayProps) {
-  const [expanded, setExpanded] = useState<Record<SectionId, boolean>>({ nano: true, veo: true, omni: true });
-  const toggle = (id: SectionId) => setExpanded((e) => ({ ...e, [id]: !e[id] }));
-  // Omni Flash has no persisted preference today (there's normally only one
-  // variant) — tracked locally instead, only relevant if a tier ever
-  // exposes a second Omni variant to pick between.
-  const [omniOverride, setOmniOverride] = useState<string | null>(null);
-
   const { scan, prefs } = props;
 
   const nanoModels = scan ? groupModels(scan.imageModels, NANO_BASE) : [];
@@ -155,7 +160,7 @@ export function Overlay(props: OverlayProps) {
     OMNI_BASE
   );
   const omniModels = resolvedOmniModels.length ? resolvedOmniModels : ['Omni Flash'];
-  const omniModel = omniOverride && omniModels.includes(omniOverride) ? omniOverride : omniModels[0];
+  const omniModel = prefs.omniModel && omniModels.includes(prefs.omniModel) ? prefs.omniModel : omniModels[0];
   const omniScanModel = omniScanModels.find((m) => m.label === omniModel);
   const omniDurations = omniScanModel?.durations ?? [];
   const omniResolutions = omniScanModel?.resolutions ?? [];
@@ -176,12 +181,12 @@ export function Overlay(props: OverlayProps) {
         </button>
       </div>
 
-      <Section id="nano" label="Nano Banana" expanded={expanded.nano} onToggle={toggle}>
+      <Section id="nano" label="Nano Banana" expanded={props.sectionsExpanded.nano} onToggle={props.onToggleSection}>
         <ModelRow values={resolvedNanoModels} base={NANO_BASE} active={prefs.nanoModel} onSelect={props.onSetNanoModel} />
         <PresetRow values={AMOUNTS} active={props.nanoActive ? props.count : null} onSelect={props.onImg} />
       </Section>
 
-      <Section id="veo" label="Veo 3.1" expanded={expanded.veo} onToggle={toggle}>
+      <Section id="veo" label="Veo 3.1" expanded={props.sectionsExpanded.veo} onToggle={props.onToggleSection}>
         <VideoModeRow active={prefs.veoVideoMode} onSelect={props.onSetVeoMode} />
         <ModelRow values={resolvedVeoModels} base={VEO_BASE} active={prefs.veoModel} onSelect={props.onSetVeoModel} />
         {veoResolutions.length > 0 && (
@@ -193,13 +198,13 @@ export function Overlay(props: OverlayProps) {
         <PresetRow values={AMOUNTS} active={props.veoActive ? props.count : prefs.veoAmount} onSelect={props.onSetVeoAmount} />
       </Section>
 
-      <Section id="omni" label={omniModel} expanded={expanded.omni} onToggle={toggle}>
+      <Section id="omni" label={omniModel} expanded={props.sectionsExpanded.omni} onToggle={props.onToggleSection}>
         <VideoModeRow active={prefs.omniVideoMode} onSelect={props.onSetOmniMode} />
-        <ModelRow values={omniModels} base={OMNI_BASE} active={omniModel} onSelect={setOmniOverride} />
+        <ModelRow values={omniModels} base={OMNI_BASE} active={omniModel} onSelect={props.onSetOmniModel} />
         {omniResolutions.length > 0 && (
           <PresetRow
             values={omniResolutions}
-            active={props.omniActive ? props.resolution : null}
+            active={props.omniActive ? props.resolution : prefs.omniResolution}
             onSelect={(resolution) => props.onOmniResolution(omniModel, resolution)}
           />
         )}
