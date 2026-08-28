@@ -14,6 +14,24 @@ body.fqs-automating [role='menu'] {
   pointer-events: none !important;
 }
 
+/* Used by reveal.ts to cut short Flow's own blur+grain settle animation
+   the instant a generated image is actually ready to paint. -hold pins the
+   blur layer hidden while its readiness is confirmed (Flow's own fade-in
+   starts before that point); -done and -hide are applied together once
+   confirmed, replacing the multi-second settle with an instant cut. */
+.fqs-reveal-hold {
+  opacity: 0 !important;
+}
+
+.fqs-reveal-done {
+  --blur-amount: 0px !important;
+  opacity: 1 !important;
+}
+
+.fqs-reveal-hide {
+  display: none !important;
+}
+
 #fqs-widget {
   --fqs-btn-size: 32px;
   position: fixed;

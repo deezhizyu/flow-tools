@@ -2,6 +2,7 @@ import { clearReferences, pasteFromClipboard } from '../flow-dom';
 import { useDraggable } from '../hooks/useDraggable';
 import { useFlowPresets } from '../hooks/useFlowPresets';
 import { useFlowSync } from '../hooks/useFlowSync';
+import { useInstantReveal } from '../hooks/useInstantReveal';
 import { useModelScan } from '../hooks/useModelScan';
 import { usePrefs } from '../hooks/usePrefs';
 import { ClearRefsButton } from './ClearRefsButton';
@@ -37,6 +38,7 @@ function computePlacement(offset: { x: number; y: number }, boxRect: { left: num
 }
 
 export function App() {
+  useInstantReveal();
   const { box, panelOpen, triggerSummary, pastePos, clearRefsPos, isEditPage } = useFlowSync();
   const {
     prefs,
