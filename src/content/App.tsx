@@ -12,6 +12,7 @@ import {
 import { ClearRefsButton } from './ClearRefsButton';
 import { Overlay } from './Overlay';
 import { PasteButton } from './PasteButton';
+import { RefreshButton } from './RefreshButton';
 import { ToggleButton } from './ToggleButton';
 import { useDraggable } from './useDraggable';
 import { useFlowSync } from './useFlowSync';
@@ -25,15 +26,30 @@ const WIDGET_ANCHOR = 16;
 
 // Once dragged into the top half of the screen, the overlay (which by
 // default opens upward from the button) would run off the top edge — flip
-// it to open downward instead. Same idea horizontally: past the left half,
-// right-aligning it against the button would push it off the left edge, so
-// left-align it against the button instead.
-function computePlacement(offset: { x: number; y: number }) {
+// it to open downward instead.
+//
+// Horizontally, the screen splits into three regions divided by the prompt
+// container's own left/right edges: the strip left of it, the container
+// itself, and the strip right of it. Each region is then bisected on its
+// own — the overlay left-aligns (grows rightward, away from the screen
+// edge nearest it) in a region's near-edge half and right-aligns (grows
+// leftward) in its far-edge half — so the overlay always opens toward open
+// space rather than off-screen or under the prompt box.
+function computePlacement(offset: { x: number; y: number }, boxRect: { left: number; right: number }) {
   const buttonRight = window.innerWidth - WIDGET_ANCHOR + offset.x;
   const buttonBottom = window.innerHeight - WIDGET_ANCHOR + offset.y;
+
+  const [regionStart, regionEnd] =
+    buttonRight < boxRect.left
+      ? [0, boxRect.left]
+      : buttonRight > boxRect.right
+        ? [boxRect.right, window.innerWidth]
+        : [boxRect.left, boxRect.right];
+  const regionMid = (regionStart + regionEnd) / 2;
+
   return {
     openBelow: buttonBottom < window.innerHeight / 2,
-    alignLeft: buttonRight < window.innerWidth / 2,
+    alignLeft: buttonRight < regionMid,
   };
 }
 
@@ -87,7 +103,7 @@ export function App() {
 
   if (!box) return null;
 
-  const { openBelow, alignLeft } = computePlacement(offset);
+  const { openBelow, alignLeft } = computePlacement(offset, box.getBoundingClientRect());
   const widgetClass = [openBelow && 'fqs-open-below', alignLeft && 'fqs-align-left'].filter(Boolean).join(' ');
 
   const nanoActive = isNanoActive(triggerSummary);
@@ -175,12 +191,11 @@ export function App() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         />
+        {prefs.overlayOpen && <RefreshButton scanning={scanning} onRefresh={refresh} />}
         {prefs.overlayOpen && (
           <Overlay
             prefs={prefs}
             scan={scan}
-            scanning={scanning}
-            onRefresh={refresh}
             sectionsExpanded={prefs.sectionsExpanded}
             onToggleSection={(id) => setSectionExpanded(id, !prefs.sectionsExpanded[id])}
             nanoActive={nanoActive}

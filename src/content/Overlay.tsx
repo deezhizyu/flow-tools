@@ -19,8 +19,6 @@ import { usePressed } from './usePressed';
 interface OverlayProps {
   prefs: Prefs;
   scan: ScanResult | null;
-  scanning: boolean;
-  onRefresh: () => void;
   sectionsExpanded: SectionsExpanded;
   onToggleSection: (id: SectionId) => void;
 
@@ -167,20 +165,6 @@ export function Overlay(props: OverlayProps) {
 
   return (
     <div id="fqs-overlay">
-      <div class="fqs-header">
-        <button
-          type="button"
-          class={cx('fqs-refresh-btn', props.scanning && 'fqs-spinning')}
-          onClick={props.onRefresh}
-          disabled={props.scanning}
-          title="Rescan Flow's models and options"
-        >
-          <span class="google-symbols" aria-hidden="true">
-            refresh
-          </span>
-        </button>
-      </div>
-
       <Section id="nano" label="Nano Banana" expanded={props.sectionsExpanded.nano} onToggle={props.onToggleSection}>
         <ModelRow values={resolvedNanoModels} base={NANO_BASE} active={prefs.nanoModel} onSelect={props.onSetNanoModel} />
         <PresetRow values={AMOUNTS} active={props.nanoActive ? props.count : null} onSelect={props.onImg} />

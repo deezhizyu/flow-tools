@@ -15,27 +15,25 @@ body.fqs-automating [role='menu'] {
 }
 
 #fqs-widget {
+  --fqs-btn-size: 32px;
   position: fixed;
   bottom: 16px;
   right: 16px;
   z-index: 70;
 }
 
-/* Anchored to the widget's own fixed corner rather than stacked in normal
-   flow, so opening/closing the overlay below it — which changes its
-   height — never shifts the button. */
-#fqs-toggle-btn {
+/* Shared visual for both the toggle and refresh buttons — position is set
+   per-id separately so each can sit at its own spot in the widget. */
+.fqs-round-btn {
   all: unset;
   box-sizing: border-box;
   position: absolute;
-  right: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: grab;
-  width: 32px;
-  height: 32px;
+  cursor: pointer;
+  width: var(--fqs-btn-size);
+  height: var(--fqs-btn-size);
   font-size: 18px;
   line-height: 1;
   color: rgba(255, 255, 255, 0.9);
@@ -50,14 +48,59 @@ body.fqs-automating [role='menu'] {
   touch-action: none;
 }
 
-#fqs-toggle-btn:hover {
+.fqs-round-btn:hover {
   background-color: rgba(48, 50, 52, 0.9);
+}
+
+.fqs-round-btn:active,
+.fqs-round-btn.fqs-pressed {
+  background-color: rgba(68, 70, 72, 0.9);
+}
+
+/* Anchored to the widget's own fixed corner rather than stacked in normal
+   flow, so opening/closing the overlay below it — which changes its
+   height — never shifts the button. */
+#fqs-toggle-btn {
+  right: 0;
+  bottom: 0;
+  cursor: grab;
 }
 
 #fqs-toggle-btn:active,
 #fqs-toggle-btn.fqs-pressed {
-  background-color: rgba(68, 70, 72, 0.9);
   cursor: grabbing;
+}
+
+/* Sits at the same bottom row as the toggle button, immediately beside
+   it — on its left by default, since the toggle's own right:0 anchor
+   leaves that side free. Mirrored to the toggle's right under
+   fqs-align-left below, since the panel then grows rightward from the
+   toggle and the toggle's left side is where the panel needs the room. */
+#fqs-refresh-btn {
+  right: calc(var(--fqs-btn-size) + 8px);
+  bottom: 0;
+}
+
+#fqs-widget.fqs-align-left #fqs-refresh-btn {
+  left: 8px;
+  right: auto;
+}
+
+#fqs-refresh-btn:disabled {
+  cursor: default;
+}
+
+#fqs-refresh-btn.fqs-spinning span {
+  animation: fqs-spin 0.9s linear infinite;
+}
+
+@keyframes fqs-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Bottom-anchored 40px above the widget's corner (32px button + 8px gap)
@@ -93,9 +136,12 @@ body.fqs-automating [role='menu'] {
   bottom: auto;
 }
 
-#fqs-widget.fqs-align-left #fqs-toggle-btn,
+/* Aligns the overlay's left edge with the button's own left edge, not
+   with the widget's zero-width anchor point (x:0) — the button always
+   sits pinned at right:0, so its left edge is one button-width to the
+   left of that origin. */
 #fqs-widget.fqs-align-left #fqs-overlay {
-  left: 0;
+  left: calc(-1 * var(--fqs-btn-size));
   right: auto;
 }
 
@@ -103,58 +149,6 @@ body.fqs-automating [role='menu'] {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-/* Rescan trigger, placed opposite the toggle button's own side of the
-   widget (see #fqs-widget.fqs-align-left below) so it never sits under
-   the user's thumb/cursor right next to the open/close control. */
-#fqs-overlay .fqs-header {
-  display: flex;
-  justify-content: flex-start;
-}
-
-#fqs-widget.fqs-align-left #fqs-overlay .fqs-header {
-  justify-content: flex-end;
-}
-
-#fqs-overlay .fqs-refresh-btn {
-  all: unset;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  font-size: 15px;
-  line-height: 1;
-  color: rgba(218, 220, 224, 0.75);
-  cursor: pointer;
-  border-radius: 8px;
-  transition:
-    background-color 0.1s ease,
-    color 0.1s ease;
-}
-
-#fqs-overlay .fqs-refresh-btn:hover {
-  background-color: rgba(218, 220, 224, 0.05);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-#fqs-overlay .fqs-refresh-btn:disabled {
-  cursor: default;
-}
-
-#fqs-overlay .fqs-refresh-btn.fqs-spinning span {
-  animation: fqs-spin 0.9s linear infinite;
-}
-
-@keyframes fqs-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 #fqs-overlay .fqs-section-toggle {
