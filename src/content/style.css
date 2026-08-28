@@ -1,6 +1,19 @@
 /* Colors and sizing below intentionally mirror Google Flow's own
    settings-panel stylesheet, so this overlay matches pixel-for-pixel. */
 
+/* While flow-dom.ts is driving Flow's own settings panel programmatically
+   (a single preset click, or a full model scan), Flow's real panel would
+   otherwise visibly flicker open and click through options on its own —
+   hidden for the duration instead. Targets both the panel and its nested
+   model dropdown, since either can be open when this class is toggled on;
+   pointer-events is also disabled so a hidden, mid-flight panel can never
+   catch a stray real click from the user. */
+body.fqs-automating .DropdownMenuContent,
+body.fqs-automating [role='menu'] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 #fqs-widget {
   position: fixed;
   bottom: 16px;
@@ -90,6 +103,58 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Rescan trigger, placed opposite the toggle button's own side of the
+   widget (see #fqs-widget.fqs-align-left below) so it never sits under
+   the user's thumb/cursor right next to the open/close control. */
+#fqs-overlay .fqs-header {
+  display: flex;
+  justify-content: flex-start;
+}
+
+#fqs-widget.fqs-align-left #fqs-overlay .fqs-header {
+  justify-content: flex-end;
+}
+
+#fqs-overlay .fqs-refresh-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 15px;
+  line-height: 1;
+  color: rgba(218, 220, 224, 0.75);
+  cursor: pointer;
+  border-radius: 8px;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
+}
+
+#fqs-overlay .fqs-refresh-btn:hover {
+  background-color: rgba(218, 220, 224, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+#fqs-overlay .fqs-refresh-btn:disabled {
+  cursor: default;
+}
+
+#fqs-overlay .fqs-refresh-btn.fqs-spinning span {
+  animation: fqs-spin 0.9s linear infinite;
+}
+
+@keyframes fqs-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 #fqs-overlay .fqs-section-toggle {

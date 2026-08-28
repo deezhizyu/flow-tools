@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { DEFAULT_PREFS, sendMessage, type Prefs } from '../lib/messaging';
-import type { Amount, NanoModelKey, VeoModelKey } from '../lib/models';
+import type { Amount, VideoMode } from '../lib/models';
 
 // Local mirror of the background worker's persisted preferences. Writes
 // are optimistic, then reconciled with whatever the worker actually
@@ -20,8 +20,11 @@ export function usePrefs() {
 
   return {
     prefs,
-    setNanoModel: (value: NanoModelKey) => update({ type: 'SET_PREF', key: 'nanoModel', value }),
-    setVeoModel: (value: VeoModelKey) => update({ type: 'SET_PREF', key: 'veoModel', value }),
+    setNanoModel: (value: string) => update({ type: 'SET_PREF', key: 'nanoModel', value }),
+    setVeoModel: (value: string) => update({ type: 'SET_PREF', key: 'veoModel', value }),
+    setVeoVideoMode: (value: VideoMode) => update({ type: 'SET_PREF', key: 'veoVideoMode', value }),
+    setOmniVideoMode: (value: VideoMode) => update({ type: 'SET_PREF', key: 'omniVideoMode', value }),
+    setVeoAmount: (value: Amount) => update({ type: 'SET_PREF', key: 'veoAmount', value }),
     setOmniAmount: (value: Amount) => update({ type: 'SET_PREF', key: 'omniAmount', value }),
     setOverlayOpen: (value: boolean) => update({ type: 'SET_PREF', key: 'overlayOpen', value }),
   };

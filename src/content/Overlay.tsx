@@ -1,37 +1,68 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import type { Prefs } from '../lib/messaging';
-import {
-  AMOUNTS,
-  DURATIONS,
-  NANO_VARIANTS,
-  VEO_VARIANTS,
-  type Amount,
-  type Duration,
-  type NanoModelKey,
-  type VeoModelKey,
-} from '../lib/models';
-import { isNanoActive, isOmniActive, isVeoActive, type TriggerSummary } from './flow-dom';
+import { AMOUNTS, FALLBACK_NANO_MODELS, FALLBACK_VEO_MODELS, NANO_BASE, OMNI_BASE, VEO_BASE, type Amount, type VideoMode } from '../lib/models';
+import { textContainsModelWords, type ScanResult } from './flow-dom';
 import { usePressed } from './usePressed';
-
-const NANO_LABELS: Record<NanoModelKey, string> = { pro: 'Pro', '2': '2', '2lite': '2 Lite' };
-const VEO_LABELS: Record<VeoModelKey, string> = { quality: 'Quality', fast: 'Fast', lite: 'Lite' };
 
 interface OverlayProps {
   prefs: Prefs;
-  triggerSummary: TriggerSummary | null;
-  onSetNanoModel: (value: NanoModelKey) => void;
-  onSetVeoModel: (value: VeoModelKey) => void;
+  scan: ScanResult | null;
+  scanning: boolean;
+  onRefresh: () => void;
+
+  nanoActive: boolean;
+  veoActive: boolean;
+  omniActive: boolean;
+  count: Amount | null; // shared across sections — meaningful only where *Active is true
+  duration: string | null; // shared across the video sections — meaningful only where *Active is true
+  resolution: string | null; // shared across the video sections — meaningful only where *Active is true
+
+  onSetNanoModel: (label: string) => void;
+  onSetVeoModel: (label: string) => void;
+  onSetVeoMode: (mode: VideoMode) => void;
+  onSetOmniMode: (mode: VideoMode) => void;
+  onSetVeoAmount: (value: Amount) => void;
   onSetOmniAmount: (value: Amount) => void;
   onImg: (amount: Amount) => void;
-  onVid: (amount: Amount) => void;
-  onOmniDur: (duration: Duration) => void;
+  onVeoDuration: (duration: string) => void;
+  onVeoResolution: (resolution: string) => void;
+  onOmniDuration: (modelLabel: string, duration: string) => void;
+  onOmniResolution: (modelLabel: string, resolution: string) => void;
 }
 
 type SectionId = 'nano' | 'veo' | 'omni';
 
 function cx(...classes: Array<string | false | undefined>): string {
   return classes.filter(Boolean).join(' ');
+}
+
+// Verbose suffixes Flow renders in full but that don't fit a 4-across
+// pill row — abbreviated for display only, matching is unaffected since
+// it always happens against the untouched raw label.
+const LABEL_ABBREVIATIONS: [RegExp, string][] = [[/\[Lower Priority\]/i, '[LP]']];
+
+// Strips a scanned label's base-name words down to just the distinguishing
+// part (e.g. "Veo 3.1 - Fast" + "Veo 3.1" -> "Fast") for compact button
+// text — falls back to the full label if nothing distinguishing is left.
+// Words are compared with punctuation stripped on both sides, so a base
+// like "Veo 3.1" (raw word "3.1") still matches the label's own "3.1".
+function shortLabel(label: string, base: string): string {
+  const normalize = (w: string) => w.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const baseWords = new Set(base.split(/\s+/).filter(Boolean).map(normalize));
+  let rest = label
+    .split(/\s+/)
+    .filter((w) => !baseWords.has(normalize(w)))
+    .join(' ')
+    .replace(/^[-–—:\s]+/, '')
+    .trim();
+  rest = rest || label;
+  for (const [pattern, replacement] of LABEL_ABBREVIATIONS) rest = rest.replace(pattern, replacement);
+  return rest;
+}
+
+function groupModels(labels: string[], base: string): string[] {
+  return labels.filter((l) => textContainsModelWords(l, base));
 }
 
 function Section(props: {
@@ -65,7 +96,12 @@ function PresetButton(props: { active: boolean; label: string; onPress: () => vo
   );
 }
 
-function PresetRow<T extends string>(props: { values: readonly T[]; labels?: Record<T, string>; active: T | null; onSelect: (value: T) => void }) {
+function PresetRow<T extends string>(props: {
+  values: readonly T[];
+  labels?: Record<T, string>;
+  active: T | null;
+  onSelect: (value: T) => void;
+}) {
   return (
     <div class="fqs-row">
       {props.values.map((value) => (
@@ -75,30 +111,106 @@ function PresetRow<T extends string>(props: { values: readonly T[]; labels?: Rec
   );
 }
 
+// Only worth a row once there's an actual choice — a single scanned/
+// fallback variant renders as this category's implicit selection instead.
+function ModelRow(props: { values: string[]; base: string; active: string | null; onSelect: (value: string) => void }) {
+  if (props.values.length < 2) return null;
+  const labels = Object.fromEntries(props.values.map((v) => [v, shortLabel(v, props.base)])) as Record<string, string>;
+  return <PresetRow values={props.values} labels={labels} active={props.active} onSelect={props.onSelect} />;
+}
+
+const VIDEO_MODE_LABELS: Record<VideoMode, string> = { frames: 'Frames', ingredients: 'Ingredients' };
+const VIDEO_MODES: VideoMode[] = ['frames', 'ingredients'];
+
+function VideoModeRow(props: { active: VideoMode; onSelect: (mode: VideoMode) => void }) {
+  return <PresetRow values={VIDEO_MODES} labels={VIDEO_MODE_LABELS} active={props.active} onSelect={props.onSelect} />;
+}
+
 export function Overlay(props: OverlayProps) {
   const [expanded, setExpanded] = useState<Record<SectionId, boolean>>({ nano: true, veo: true, omni: true });
   const toggle = (id: SectionId) => setExpanded((e) => ({ ...e, [id]: !e[id] }));
+  // Omni Flash has no persisted preference today (there's normally only one
+  // variant) — tracked locally instead, only relevant if a tier ever
+  // exposes a second Omni variant to pick between.
+  const [omniOverride, setOmniOverride] = useState<string | null>(null);
 
-  const summary = props.triggerSummary;
-  const nanoCount = isNanoActive(summary) ? summary!.count : null;
-  const veoCount = isVeoActive(summary) ? summary!.count : null;
-  const omniDuration = isOmniActive(summary) ? summary!.duration : null;
+  const { scan, prefs } = props;
+
+  const nanoModels = scan ? groupModels(scan.imageModels, NANO_BASE) : [];
+  const resolvedNanoModels = nanoModels.length ? nanoModels : FALLBACK_NANO_MODELS;
+
+  const veoScanModels = scan?.video[prefs.veoVideoMode].models ?? [];
+  const veoModels = groupModels(
+    veoScanModels.map((m) => m.label),
+    VEO_BASE
+  );
+  const resolvedVeoModels = veoModels.length ? veoModels : FALLBACK_VEO_MODELS;
+  const veoScanModel = veoScanModels.find((m) => m.label === prefs.veoModel);
+  const veoDurations = veoScanModel?.durations ?? [];
+  const veoResolutions = veoScanModel?.resolutions ?? [];
+
+  const omniScanModels = scan?.video[prefs.omniVideoMode].models ?? [];
+  const resolvedOmniModels = groupModels(
+    omniScanModels.map((m) => m.label),
+    OMNI_BASE
+  );
+  const omniModels = resolvedOmniModels.length ? resolvedOmniModels : ['Omni Flash'];
+  const omniModel = omniOverride && omniModels.includes(omniOverride) ? omniOverride : omniModels[0];
+  const omniScanModel = omniScanModels.find((m) => m.label === omniModel);
+  const omniDurations = omniScanModel?.durations ?? [];
+  const omniResolutions = omniScanModel?.resolutions ?? [];
 
   return (
     <div id="fqs-overlay">
+      <div class="fqs-header">
+        <button
+          type="button"
+          class={cx('fqs-refresh-btn', props.scanning && 'fqs-spinning')}
+          onClick={props.onRefresh}
+          disabled={props.scanning}
+          title="Rescan Flow's models and options"
+        >
+          <span class="google-symbols" aria-hidden="true">
+            refresh
+          </span>
+        </button>
+      </div>
+
       <Section id="nano" label="Nano Banana" expanded={expanded.nano} onToggle={toggle}>
-        <PresetRow values={NANO_VARIANTS} labels={NANO_LABELS} active={props.prefs.nanoModel} onSelect={props.onSetNanoModel} />
-        <PresetRow values={AMOUNTS} active={nanoCount} onSelect={props.onImg} />
+        <ModelRow values={resolvedNanoModels} base={NANO_BASE} active={prefs.nanoModel} onSelect={props.onSetNanoModel} />
+        <PresetRow values={AMOUNTS} active={props.nanoActive ? props.count : null} onSelect={props.onImg} />
       </Section>
 
       <Section id="veo" label="Veo 3.1" expanded={expanded.veo} onToggle={toggle}>
-        <PresetRow values={VEO_VARIANTS} labels={VEO_LABELS} active={props.prefs.veoModel} onSelect={props.onSetVeoModel} />
-        <PresetRow values={AMOUNTS} active={veoCount} onSelect={props.onVid} />
+        <VideoModeRow active={prefs.veoVideoMode} onSelect={props.onSetVeoMode} />
+        <ModelRow values={resolvedVeoModels} base={VEO_BASE} active={prefs.veoModel} onSelect={props.onSetVeoModel} />
+        {veoResolutions.length > 0 && (
+          <PresetRow values={veoResolutions} active={props.veoActive ? props.resolution : null} onSelect={props.onVeoResolution} />
+        )}
+        {veoDurations.length > 0 && (
+          <PresetRow values={veoDurations} active={props.veoActive ? props.duration : null} onSelect={props.onVeoDuration} />
+        )}
+        <PresetRow values={AMOUNTS} active={props.veoActive ? props.count : prefs.veoAmount} onSelect={props.onSetVeoAmount} />
       </Section>
 
-      <Section id="omni" label="Omni Flash" expanded={expanded.omni} onToggle={toggle}>
-        <PresetRow values={DURATIONS} active={omniDuration} onSelect={props.onOmniDur} />
-        <PresetRow values={AMOUNTS} active={props.prefs.omniAmount} onSelect={props.onSetOmniAmount} />
+      <Section id="omni" label={omniModel} expanded={expanded.omni} onToggle={toggle}>
+        <VideoModeRow active={prefs.omniVideoMode} onSelect={props.onSetOmniMode} />
+        <ModelRow values={omniModels} base={OMNI_BASE} active={omniModel} onSelect={setOmniOverride} />
+        {omniResolutions.length > 0 && (
+          <PresetRow
+            values={omniResolutions}
+            active={props.omniActive ? props.resolution : null}
+            onSelect={(resolution) => props.onOmniResolution(omniModel, resolution)}
+          />
+        )}
+        {omniDurations.length > 0 && (
+          <PresetRow
+            values={omniDurations}
+            active={props.omniActive ? props.duration : null}
+            onSelect={(duration) => props.onOmniDuration(omniModel, duration)}
+          />
+        )}
+        <PresetRow values={AMOUNTS} active={props.omniActive ? props.count : prefs.omniAmount} onSelect={props.onSetOmniAmount} />
       </Section>
     </div>
   );

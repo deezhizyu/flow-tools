@@ -1,15 +1,29 @@
 // Sole owner of chrome.storage.local: the content script never touches
 // storage directly, it asks over the messaging layer instead.
 
-import { AMOUNTS, NANO_VARIANTS, VEO_VARIANTS } from '../lib/models';
+import { AMOUNTS } from '../lib/models';
 import { DEFAULT_PREFS, type Message, type Prefs } from '../lib/messaging';
+
+// Model labels are discovered live from Flow's own menu (see scanFlow in
+// the content script), so the background worker — which has no DOM access
+// — can't validate them against a known set. It only checks shape.
+function isValidModelLabel(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length < 200;
+}
+
+function isValidVideoMode(value: unknown): value is Prefs['veoVideoMode'] {
+  return value === 'frames' || value === 'ingredients';
+}
 
 function isValidValue<K extends keyof Prefs>(key: K, value: unknown): value is Prefs[K] {
   switch (key) {
     case 'nanoModel':
-      return (NANO_VARIANTS as unknown[]).includes(value);
     case 'veoModel':
-      return (VEO_VARIANTS as unknown[]).includes(value);
+      return isValidModelLabel(value);
+    case 'veoVideoMode':
+    case 'omniVideoMode':
+      return isValidVideoMode(value);
+    case 'veoAmount':
     case 'omniAmount':
       return (AMOUNTS as unknown[]).includes(value);
     case 'overlayOpen':
@@ -24,6 +38,9 @@ async function getPrefs(): Promise<Prefs> {
   return {
     nanoModel: isValidValue('nanoModel', stored.nanoModel) ? stored.nanoModel : DEFAULT_PREFS.nanoModel,
     veoModel: isValidValue('veoModel', stored.veoModel) ? stored.veoModel : DEFAULT_PREFS.veoModel,
+    veoVideoMode: isValidValue('veoVideoMode', stored.veoVideoMode) ? stored.veoVideoMode : DEFAULT_PREFS.veoVideoMode,
+    omniVideoMode: isValidValue('omniVideoMode', stored.omniVideoMode) ? stored.omniVideoMode : DEFAULT_PREFS.omniVideoMode,
+    veoAmount: isValidValue('veoAmount', stored.veoAmount) ? stored.veoAmount : DEFAULT_PREFS.veoAmount,
     omniAmount: isValidValue('omniAmount', stored.omniAmount) ? stored.omniAmount : DEFAULT_PREFS.omniAmount,
     overlayOpen: isValidValue('overlayOpen', stored.overlayOpen) ? stored.overlayOpen : DEFAULT_PREFS.overlayOpen,
   };

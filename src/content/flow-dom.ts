@@ -1,6 +1,6 @@
 // Drives Google Flow's own settings panel and prompt box programmatically.
 
-import { NANO_BASE, type Amount, type Duration } from '../lib/models';
+import { NANO_BASE, type Amount, type VideoMode } from '../lib/models';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -27,6 +27,47 @@ function isVisible(el: Element | null): boolean {
   if (!el) return false;
   const e = el as HTMLElement;
   return !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+}
+
+// After a model switch, Flow remounts the resolution/duration/amount rows
+// a beat after the model button's own label updates — reading a scan
+// immediately after selectModelIfNeeded resolves can catch that row
+// mid-remount (e.g. see it as empty right before its duration options
+// appear). Rather than guess a fixed delay, poll until the trigger row's
+// text stops changing between reads, so scanning waits exactly as long as
+// each model's re-render actually takes — including models that settle on
+// having no duration row at all, which is itself a real, final state. The
+// quiet/interval windows are kept tight since this runs once per scanned
+// model — correctness (never reading mid-remount) matters more here than
+// shaving a few extra ms, but scanning a dozen models makes every
+// millisecond of slack multiply.
+async function waitForStableTriggers(
+  panel: HTMLElement,
+  { timeout = 700, quiet = 60, interval = 20 }: { timeout?: number; quiet?: number; interval?: number } = {}
+): Promise<HTMLElement> {
+  const readTriggers = (p: HTMLElement) =>
+    Array.from(p.querySelectorAll<HTMLButtonElement>('.flow_tab_slider_trigger'))
+      .map((b) => `${b.getAttribute('data-state')}:${b.textContent!.trim()}`)
+      .join('|');
+
+  const start = Date.now();
+  let current = panel;
+  let last = readTriggers(current);
+  let lastChange = Date.now();
+
+  while (Date.now() - start < timeout) {
+    await sleep(interval);
+    const p = getPanel() || current;
+    const now = readTriggers(p);
+    current = p;
+    if (now !== last) {
+      last = now;
+      lastChange = Date.now();
+    } else if (Date.now() - lastChange >= quiet) {
+      return current;
+    }
+  }
+  return current;
 }
 
 // Flow's settings panel is built on Radix UI, which opens on pointerdown
@@ -107,14 +148,49 @@ export function getPanel(): HTMLElement | null {
   return panels.find(isVisible) || null;
 }
 
-function getTabTriggers(panel: HTMLElement): HTMLButtonElement[] {
+// Every row in the panel — top tabs (image/video), the Frames/Ingredients
+// mode row, aspect ratio, resolution, duration, and amount — renders as a
+// `.flow_tab_slider_trigger` button. Icon rows (tabs, mode, aspect ratio)
+// carry an <i> ligature; plain-text rows (resolution/duration/amount)
+// don't, and are told apart by their text shape (see is*Text below).
+function getTriggers(panel: HTMLElement): HTMLButtonElement[] {
   return Array.from(panel.querySelectorAll<HTMLButtonElement>('.flow_tab_slider_trigger'));
 }
 
-function clickTabByIcon(panel: HTMLElement, iconName: string): void {
-  const btn = getTabTriggers(panel).find((b) => b.querySelector('i')?.textContent?.trim() === iconName);
+function triggerIcon(btn: HTMLButtonElement): string | null {
+  return btn.querySelector('i')?.textContent?.trim() || null;
+}
+
+function clickTriggerByIcon(panel: HTMLElement, iconName: string): void {
+  const btn = getTriggers(panel).find((b) => triggerIcon(b) === iconName);
   if (btn && btn.getAttribute('data-state') !== 'active') fullClick(btn);
 }
+
+function clickTriggerByText(panel: HTMLElement, text: string): void {
+  const btn = getTriggers(panel).find((b) => !triggerIcon(b) && b.textContent!.trim() === text);
+  if (btn && btn.getAttribute('data-state') !== 'active') fullClick(btn);
+}
+
+function activeTriggerText(panel: HTMLElement, matches: (text: string) => boolean): string | null {
+  const btn = getTriggers(panel).find(
+    (b) => !triggerIcon(b) && b.getAttribute('data-state') === 'active' && matches(b.textContent!.trim())
+  );
+  return btn ? btn.textContent!.trim() : null;
+}
+
+function allTriggerTexts(panel: HTMLElement, matches: (text: string) => boolean): string[] {
+  return getTriggers(panel)
+    .filter((b) => !triggerIcon(b) && matches(b.textContent!.trim()))
+    .map((b) => b.textContent!.trim());
+}
+
+// Duration/resolution/amount rows are told apart by their text shape alone
+// — digits are locale-independent, unlike matching a translated label.
+const isDurationText = (t: string) => /^\d+s$/i.test(t);
+const isResolutionText = (t: string) => /^\d+p$/i.test(t);
+const isAmountText = (t: string) => /^x\d+$/i.test(t);
+
+const VIDEO_MODE_ICON: Record<VideoMode, string> = { frames: 'crop_free', ingredients: 'chrome_extension' };
 
 function getModelMenuButton(panel: HTMLElement): HTMLButtonElement | null {
   return panel.querySelector('button[aria-haspopup="menu"]');
@@ -135,7 +211,7 @@ function modelLabelText(el: Element): string {
   const parts: string[] = [];
   let n: Node | null;
   while ((n = walker.nextNode())) parts.push(n.textContent || '');
-  return parts.join(' ');
+  return parts.join(' ').trim();
 }
 
 // Flow reorders/relabels model names around punctuation (e.g. "Veo 3.1 -
@@ -152,58 +228,90 @@ function modelWords(text: string): Set<string> {
 }
 
 // Loose: every word of targetName must appear in text, extra words in
-// text are ignored. Used to detect "is this some Nano Banana variant at
-// all" and to match Omni Flash, whose version-number suffix should be
-// ignored and which has no sibling variant to confuse it with.
+// text are ignored. Used to bucket a scanned model label into the right
+// overlay section (e.g. "is this label some Nano Banana variant at all")
+// without being tripped up by version-number suffixes like Omni's.
 export function textContainsModelWords(text: string, targetName: string): boolean {
   const target = modelWords(targetName);
   const actual = modelWords(text);
   return [...target].every((word) => actual.has(word));
 }
 
-// Exact: word sets must match exactly. Needed to tell Nano Banana Pro / 2
-// / 2 Lite apart, where a loose check would treat "2" as a match for "2
-// Lite" too.
+// Exact: word sets must match exactly. Scanned labels are matched against
+// each other this way, since they come from the same source (Flow's own
+// menu) and should compare byte-for-byte modulo icon-ligature noise.
 function textMatchesModel(text: string, targetName: string): boolean {
   const target = modelWords(targetName);
   const actual = modelWords(text);
   return actual.size === target.size && [...target].every((word) => actual.has(word));
 }
 
-function matchesModel(el: Element, targetName: string, exact: boolean): boolean {
-  const text = modelLabelText(el);
-  return exact ? textMatchesModel(text, targetName) : textContainsModelWords(text, targetName);
+function matchesModel(el: Element, targetName: string): boolean {
+  return textMatchesModel(modelLabelText(el), targetName);
 }
 
-// Duration buttons only exist under Omni Flash — Veo 3.1 hides them
-// entirely — so the model must be corrected before picking a duration.
-async function selectModelIfNeeded(panel: HTMLElement, modelName: string, exact: boolean): Promise<void> {
+// Duration buttons only exist under models that support picking a length
+// — which model has this at all depends on the account's subscription
+// tier, so the model must be corrected before reading/picking a duration.
+// Returns whether it actually clicked a different model — callers use
+// this to skip the post-switch settle wait entirely when nothing changed.
+async function selectModelIfNeeded(panel: HTMLElement, modelName: string): Promise<boolean> {
   const modelBtn = getModelMenuButton(panel);
-  if (!modelBtn || matchesModel(modelBtn, modelName, exact)) return;
+  if (!modelBtn || matchesModel(modelBtn, modelName)) return false;
 
   fullClick(modelBtn);
   const items = await waitFor(() => {
     const found = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).filter(isVisible);
     return found.length ? found : null;
   });
-  const item = items?.find((i) => matchesModel(i, modelName, exact));
-  if (!item) return;
+  const item = items?.find((i) => matchesModel(i, modelName));
+  if (!item) return false;
   fullClick(item);
   await waitFor(() => {
     const btn = getPanel() && getModelMenuButton(getPanel()!);
-    return btn && matchesModel(btn, modelName, exact);
+    return btn && matchesModel(btn, modelName);
   });
+  return true;
+}
+
+// Reads the model dropdown's options without changing the current
+// selection — opens it, reads every menu item's label, then closes it via
+// the same trigger click that opened it (Radix toggles on repeat clicks,
+// same as the main panel trigger does).
+async function scanModelNames(panel: HTMLElement): Promise<string[]> {
+  const modelBtn = getModelMenuButton(panel);
+  if (!modelBtn) return [];
+  fullClick(modelBtn);
+  const items = await waitFor(() => {
+    const found = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).filter(isVisible);
+    return found.length ? found : null;
+  });
+  const names = (items || []).map((i) => modelLabelText(i)).filter(Boolean);
+  fullClick(modelBtn);
+  await waitFor(() => (document.querySelector('[role="menuitem"]') ? null : true), { timeout: 600 });
+  return names;
 }
 
 // Guards against a click landing mid-flight of a previous panel action,
 // which would otherwise race the same panel/box.
 let busy = false;
 
+// Every withPanel-driven interaction (a single preset click as much as a
+// full scan) opens Flow's real settings panel and clicks through it —
+// visible, distracting flicker if left alone. Toggling this class hides
+// whatever panel is currently open/opening via CSS (see style.css) rather
+// than opacity-styling individual panel element references, since a tab
+// switch mid-operation can remount the panel into a brand new element.
+function setAutomating(active: boolean): void {
+  document.body.classList.toggle('fqs-automating', active);
+}
+
 // Opens Flow's settings panel if needed, runs `work` against it, then
 // closes it again — the shared shell around every panel interaction.
 async function withPanel<T>(work: (panel: HTMLElement) => Promise<T>): Promise<T | undefined> {
   if (busy) return undefined;
   busy = true;
+  setAutomating(true);
   try {
     let trigger = findMainTrigger();
     if (!trigger) return undefined;
@@ -222,61 +330,209 @@ async function withPanel<T>(work: (panel: HTMLElement) => Promise<T>): Promise<T
     if (trigger && getPanel()) fullClick(trigger);
     return result;
   } finally {
+    setAutomating(false);
     busy = false;
   }
 }
 
 export interface ApplyPresetOptions {
   tabIcon: 'image' | 'videocam';
+  mode?: VideoMode; // required to pick a video model's variant/duration correctly
   modelName: string;
-  subText: Amount | Duration; // output-count row for Nano Banana/Veo, duration row for Omni Flash
-  amount?: Amount; // Omni Flash's second click: output count, after duration
-  modelMatch?: 'exact' | 'loose'; // 'exact' for Nano Banana/Veo siblings, 'loose' for Omni Flash
+  subText?: Amount | string; // duration or output-count row to click
+  amount?: Amount; // second click after subText, e.g. duration then count
 }
 
-export async function applyPreset({
-  tabIcon,
-  modelName,
-  subText,
-  amount,
-  modelMatch = 'exact',
-}: ApplyPresetOptions): Promise<void> {
+export async function applyPreset({ tabIcon, mode, modelName, subText, amount }: ApplyPresetOptions): Promise<void> {
   await withPanel(async (openedPanel) => {
-    clickTabByIcon(openedPanel, tabIcon);
+    clickTriggerByIcon(openedPanel, tabIcon);
     let panel = (await waitFor(getPanel)) || openedPanel;
 
-    await selectModelIfNeeded(panel, modelName, modelMatch === 'exact');
+    if (tabIcon === 'videocam' && mode) {
+      clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
+      panel = (await waitFor(getPanel)) || panel;
+    }
+
+    await selectModelIfNeeded(panel, modelName);
     panel = (await waitFor(getPanel)) || panel;
 
-    // The duration/count row can re-render a beat after the model switch
-    // (switching models remounts the row), so poll for the target button
-    // rather than assume it's already there — clicking early is a no-op.
-    const fallbackPanel = panel;
-    const targetBtn = await waitFor(() => {
-      const p = getPanel() || fallbackPanel;
-      return getTabTriggers(p).find((b) => b.textContent!.trim() === subText) || null;
-    });
-    if (targetBtn) fullClick(targetBtn);
+    if (subText) {
+      // The duration/count row can re-render a beat after the model switch
+      // (switching models remounts the row), so poll for the target button
+      // rather than assume it's already there — clicking early is a no-op.
+      const fallbackPanel = panel;
+      const targetBtn = await waitFor(() => {
+        const p = getPanel() || fallbackPanel;
+        return getTriggers(p).find((b) => b.textContent!.trim() === subText) || null;
+      });
+      if (targetBtn) fullClick(targetBtn);
+    }
 
     if (amount) {
       await sleep(80);
       panel = getPanel() || panel;
-      const amountBtn = getTabTriggers(panel).find((b) => b.textContent!.trim() === amount);
+      const amountBtn = getTriggers(panel).find((b) => b.textContent!.trim() === amount);
       if (amountBtn) fullClick(amountBtn);
     }
   });
 }
 
-// Sets Omni Flash's output count directly, without touching tab or model
-// — for use only when Omni Flash is already the active selection.
-export async function applyOmniAmount(amount: Amount): Promise<void> {
+// Sets the output count directly on whichever model/tab is already active,
+// without touching tab, mode, or model.
+export async function applyAmount(amount: Amount): Promise<void> {
   await withPanel(async (openedPanel) => {
     const amountBtn = await waitFor(() => {
       const p = getPanel() || openedPanel;
-      return getTabTriggers(p).find((b) => b.textContent!.trim() === amount) || null;
+      return getTriggers(p).find((b) => b.textContent!.trim() === amount) || null;
     });
     if (amountBtn) fullClick(amountBtn);
   });
+}
+
+// Switches the video tab's Frames/Ingredients mode directly, without
+// touching the model or its other settings.
+export async function applyVideoMode(mode: VideoMode): Promise<void> {
+  await withPanel(async (openedPanel) => {
+    clickTriggerByIcon(openedPanel, 'videocam');
+    const panel = (await waitFor(getPanel)) || openedPanel;
+    clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
+  });
+}
+
+// ---- Live scan of Flow's own menu --------------------------------------
+//
+// Rather than hardcode which model variants exist and which of them
+// support picking a length, this opens Flow's settings panel and reads it
+// directly — so the overlay always matches what's actually offered on the
+// current account's subscription tier, and survives Flow adding/removing/
+// renaming variants without needing a code change here.
+
+export interface ScannedModel {
+  label: string; // raw label exactly as Flow renders it, e.g. "Veo 3.1 - Fast"
+  durations: string[]; // e.g. ["4s","6s","8s"] — empty if this model has no length option
+  resolutions: string[]; // e.g. ["360p","720p"] — empty if this model has no resolution option
+}
+
+export interface VideoModeScan {
+  models: ScannedModel[];
+}
+
+export interface ScanActiveState {
+  tab: 'image' | 'videocam';
+  mode: VideoMode | null; // null when tab is 'image'
+  modelLabel: string | null;
+  resolution: string | null;
+  duration: string | null;
+  amount: string | null;
+}
+
+export interface ScanResult {
+  imageModels: string[];
+  video: Record<VideoMode, VideoModeScan>;
+  active: ScanActiveState;
+  scannedAt: number;
+}
+
+function snapshotActiveState(panel: HTMLElement): ScanActiveState {
+  const tab: 'image' | 'videocam' =
+    getTriggers(panel).find((b) => triggerIcon(b) === 'videocam')?.getAttribute('data-state') === 'active'
+      ? 'videocam'
+      : 'image';
+  const mode: VideoMode | null =
+    tab === 'videocam'
+      ? getTriggers(panel).find((b) => triggerIcon(b) === VIDEO_MODE_ICON.frames)?.getAttribute('data-state') ===
+        'active'
+        ? 'frames'
+        : 'ingredients'
+      : null;
+  const modelBtn = getModelMenuButton(panel);
+  return {
+    tab,
+    mode,
+    modelLabel: modelBtn ? modelLabelText(modelBtn) : null,
+    resolution: activeTriggerText(panel, isResolutionText),
+    duration: activeTriggerText(panel, isDurationText),
+    amount: activeTriggerText(panel, isAmountText),
+  };
+}
+
+// Replays a snapshot's tab/mode/model/duration/amount selection, so a scan
+// (which must click through every model and mode to read their options)
+// leaves the live project exactly as it found it.
+async function restoreActiveState(panel: HTMLElement, snap: ScanActiveState): Promise<void> {
+  clickTriggerByIcon(panel, snap.tab);
+  panel = (await waitFor(getPanel)) || panel;
+
+  if (snap.mode) {
+    clickTriggerByIcon(panel, VIDEO_MODE_ICON[snap.mode]);
+    panel = (await waitFor(getPanel)) || panel;
+  }
+  if (snap.modelLabel) {
+    const switched = await selectModelIfNeeded(panel, snap.modelLabel);
+    panel = (await waitFor(getPanel)) || panel;
+    if (switched) panel = await waitForStableTriggers(panel);
+  }
+  if (snap.resolution) {
+    clickTriggerByText(panel, snap.resolution);
+    panel = (await waitFor(getPanel)) || panel;
+  }
+  if (snap.duration) {
+    clickTriggerByText(panel, snap.duration);
+    panel = (await waitFor(getPanel)) || panel;
+  }
+  if (snap.amount) {
+    clickTriggerByText(panel, snap.amount);
+  }
+}
+
+async function scanVideoMode(panel: HTMLElement, mode: VideoMode): Promise<{ panel: HTMLElement; scan: VideoModeScan }> {
+  clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
+  panel = (await waitFor(getPanel)) || panel;
+  panel = await waitForStableTriggers(panel);
+
+  const names = await scanModelNames(panel);
+  const models: ScannedModel[] = [];
+  for (const name of names) {
+    const switched = await selectModelIfNeeded(panel, name);
+    panel = (await waitFor(getPanel)) || panel;
+    if (switched) panel = await waitForStableTriggers(panel);
+    models.push({
+      label: name,
+      durations: allTriggerTexts(panel, isDurationText),
+      resolutions: allTriggerTexts(panel, isResolutionText),
+    });
+  }
+  return { panel, scan: { models } };
+}
+
+export async function scanFlow(): Promise<ScanResult | null> {
+  const result = await withPanel(async (openedPanel) => {
+    const snap = snapshotActiveState(openedPanel);
+    let panel = openedPanel;
+
+    clickTriggerByIcon(panel, 'image');
+    panel = (await waitFor(getPanel)) || panel;
+    const imageModels = await scanModelNames(panel);
+
+    clickTriggerByIcon(panel, 'videocam');
+    panel = (await waitFor(getPanel)) || panel;
+
+    const framesResult = await scanVideoMode(panel, 'frames');
+    panel = framesResult.panel;
+    const ingredientsResult = await scanVideoMode(panel, 'ingredients');
+    panel = ingredientsResult.panel;
+
+    await restoreActiveState(panel, snap);
+
+    const scan: ScanResult = {
+      imageModels,
+      video: { frames: framesResult.scan, ingredients: ingredientsResult.scan },
+      active: snap,
+      scannedAt: Date.now(),
+    };
+    return scan;
+  });
+  return result ?? null;
 }
 
 // The prompt box is a controlled rich-text editor that ignores
@@ -327,7 +583,8 @@ export async function pasteFromClipboard(): Promise<void> {
 
 export interface TriggerSummary {
   count: Amount | null;
-  duration: Duration | null;
+  duration: string | null;
+  resolution: string | null;
   isNano: boolean;
   isVideo: boolean;
 }
@@ -336,9 +593,13 @@ export interface TriggerSummary {
 // the current tab's settings, even while closed (e.g. "Nano Banana Pro
 // x1" or "Video · 720p · 6s x1") — reading it lets the overlay mirror
 // Flow's real selection without opening anything. A resolution marker
-// ("720p") only ever appears on the video tab, and a duration ("6s")
-// only under Omni Flash (Veo's summary omits it) — both locale-independent
-// signals, unlike matching localized mode labels would be.
+// ("720p") only ever appears on the video tab — a locale-independent
+// signal, unlike matching localized mode labels would be. Note: on tiers
+// where Veo also has a length option, this summary can't tell Veo and
+// Omni Flash apart by duration presence alone anymore — the overlay
+// tracks which video model is active separately (via the scan snapshot
+// and its own optimistic updates) rather than relying on this text for
+// that distinction.
 export function readTriggerSummary(): TriggerSummary | null {
   const trigger = findMainTrigger();
   if (!trigger) return null;
@@ -348,25 +609,19 @@ export function readTriggerSummary(): TriggerSummary | null {
     .filter(Boolean);
   const count = (textParts.find((t) => /^x\d+$/i.test(t)) as Amount | undefined) || null;
   const summary = textParts.find((t) => t !== count) || '';
-  const durationMatch = summary.match(/\b(\d+)s\b/);
+  const durationMatch = summary.match(/\b(\d+s)\b/i);
+  const resolutionMatch = summary.match(/\b(\d+p)\b/i);
   return {
     count,
-    duration: durationMatch ? (`${durationMatch[1]}s` as Duration) : null,
+    duration: durationMatch ? durationMatch[1] : null,
+    resolution: resolutionMatch ? resolutionMatch[1] : null,
     isNano: textContainsModelWords(summary, NANO_BASE),
-    isVideo: /\b\d+p\b/i.test(summary),
+    isVideo: !!resolutionMatch,
   };
 }
 
 export function isNanoActive(summary: TriggerSummary | null): boolean {
   return !!summary && summary.isNano;
-}
-
-export function isVeoActive(summary: TriggerSummary | null): boolean {
-  return !!summary && summary.isVideo && !summary.duration;
-}
-
-export function isOmniActive(summary: TriggerSummary | null): boolean {
-  return !!summary && summary.isVideo && !!summary.duration;
 }
 
 // Caps the widget (menu button + textarea + other button, stacked) at

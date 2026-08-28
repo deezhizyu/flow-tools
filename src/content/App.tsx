@@ -1,10 +1,19 @@
-import { NANO_MODELS, OMNI_MODEL, VEO_MODELS, type Amount, type Duration, type NanoModelKey, type VeoModelKey } from '../lib/models';
-import { applyOmniAmount, applyPreset, isNanoActive, isOmniActive, isVeoActive, pasteFromClipboard } from './flow-dom';
+import { useEffect, useState } from 'preact/hooks';
+import { OMNI_BASE, VEO_BASE, type Amount, type VideoMode } from '../lib/models';
+import {
+  applyAmount,
+  applyPreset,
+  applyVideoMode,
+  isNanoActive,
+  pasteFromClipboard,
+  textContainsModelWords,
+} from './flow-dom';
 import { Overlay } from './Overlay';
 import { PasteButton } from './PasteButton';
 import { ToggleButton } from './ToggleButton';
 import { useDraggable } from './useDraggable';
 import { useFlowSync } from './useFlowSync';
+import { useModelScan } from './useModelScan';
 import { usePrefs } from './usePrefs';
 
 // Matches #fqs-widget's fixed bottom/right in style.css — used to derive
@@ -26,37 +35,96 @@ function computePlacement(offset: { x: number; y: number }) {
   };
 }
 
+interface VideoActive {
+  mode: VideoMode;
+  modelLabel: string | null;
+}
+
+function categoryOf(label: string | null): 'veo' | 'omni' | null {
+  if (!label) return null;
+  if (textContainsModelWords(label, VEO_BASE)) return 'veo';
+  if (textContainsModelWords(label, OMNI_BASE)) return 'omni';
+  return null;
+}
+
 export function App() {
   const { box, panelOpen, triggerSummary, pastePos } = useFlowSync();
-  const { prefs, setNanoModel, setVeoModel, setOmniAmount, setOverlayOpen } = usePrefs();
+  const { prefs, setNanoModel, setVeoModel, setVeoVideoMode, setOmniVideoMode, setVeoAmount, setOmniAmount, setOverlayOpen } =
+    usePrefs();
   const { offset, onPointerDown, onPointerMove, onPointerUp } = useDraggable();
+  const { scan, scanning, refresh } = useModelScan(!!box);
+
+  // Which video model (Veo vs Omni Flash) is actually live in Flow right
+  // now, and which Frames/Ingredients mode it's in — the collapsed
+  // trigger alone can't tell Veo and Omni apart once a tier gives Veo a
+  // length option too (both then show a duration marker), so this is
+  // tracked separately: seeded from each scan's live snapshot
+  // (self-healing if the user changed something in Flow's own panel) and
+  // updated optimistically whenever a click here applies a video preset.
+  const [videoActive, setVideoActive] = useState<VideoActive>({ mode: 'frames', modelLabel: null });
+
+  useEffect(() => {
+    if (scan && scan.active.tab === 'videocam' && scan.active.mode) {
+      setVideoActive({ mode: scan.active.mode, modelLabel: scan.active.modelLabel });
+    }
+  }, [scan]);
 
   if (!box) return null;
 
   const { openBelow, alignLeft } = computePlacement(offset);
   const widgetClass = [openBelow && 'fqs-open-below', alignLeft && 'fqs-align-left'].filter(Boolean).join(' ');
 
-  // A model/amount switch only has somewhere to apply to once its category
-  // is already the active selection in Flow — otherwise it's just saved
-  // and rides along with the next click that opens that category's panel.
-  function applyModelIfActive(active: boolean, tabIcon: 'image' | 'videocam', modelName: string) {
+  const nanoActive = isNanoActive(triggerSummary);
+  const activeVideoCategory = triggerSummary?.isVideo ? categoryOf(videoActive.modelLabel) : null;
+  const veoActive = activeVideoCategory === 'veo';
+  const omniActive = activeVideoCategory === 'omni';
+
+  // A model/amount/mode switch only has somewhere to apply to once its
+  // category is already the active selection in Flow — otherwise it's
+  // just saved and rides along with the next click that opens that
+  // category's panel.
+  function applyModelIfActive(active: boolean, tabIcon: 'image' | 'videocam', modelName: string, mode?: VideoMode) {
     if (!active || !triggerSummary?.count) return;
-    applyPreset({ tabIcon, modelName, subText: triggerSummary.count, modelMatch: 'exact' });
+    applyPreset({ tabIcon, mode, modelName, subText: triggerSummary.count });
   }
 
-  function handleNanoModel(value: NanoModelKey) {
-    setNanoModel(value);
-    applyModelIfActive(isNanoActive(triggerSummary), 'image', NANO_MODELS[value]);
+  function handleNanoModel(label: string) {
+    setNanoModel(label);
+    applyModelIfActive(nanoActive, 'image', label);
   }
 
-  function handleVeoModel(value: VeoModelKey) {
-    setVeoModel(value);
-    applyModelIfActive(isVeoActive(triggerSummary), 'videocam', VEO_MODELS[value]);
+  function handleVeoModel(label: string) {
+    setVeoModel(label);
+    if (veoActive) {
+      setVideoActive({ mode: prefs.veoVideoMode, modelLabel: label });
+      applyModelIfActive(true, 'videocam', label, prefs.veoVideoMode);
+    }
+  }
+
+  function handleVeoMode(mode: VideoMode) {
+    setVeoVideoMode(mode);
+    if (veoActive) {
+      setVideoActive({ mode, modelLabel: videoActive.modelLabel });
+      void applyVideoMode(mode);
+    }
+  }
+
+  function handleOmniMode(mode: VideoMode) {
+    setOmniVideoMode(mode);
+    if (omniActive) {
+      setVideoActive({ mode, modelLabel: videoActive.modelLabel });
+      void applyVideoMode(mode);
+    }
+  }
+
+  function handleVeoAmount(amount: Amount) {
+    setVeoAmount(amount);
+    if (veoActive) void applyAmount(amount);
   }
 
   function handleOmniAmount(amount: Amount) {
     setOmniAmount(amount);
-    if (isOmniActive(triggerSummary)) applyOmniAmount(amount);
+    if (omniActive) void applyAmount(amount);
   }
 
   return (
@@ -72,25 +140,50 @@ export function App() {
         {prefs.overlayOpen && (
           <Overlay
             prefs={prefs}
-            triggerSummary={triggerSummary}
+            scan={scan}
+            scanning={scanning}
+            onRefresh={refresh}
+            nanoActive={nanoActive}
+            veoActive={veoActive}
+            omniActive={omniActive}
+            count={triggerSummary?.count ?? null}
+            duration={triggerSummary?.duration ?? null}
+            resolution={triggerSummary?.resolution ?? null}
             onSetNanoModel={handleNanoModel}
             onSetVeoModel={handleVeoModel}
+            onSetVeoMode={handleVeoMode}
+            onSetOmniMode={handleOmniMode}
+            onSetVeoAmount={handleVeoAmount}
             onSetOmniAmount={handleOmniAmount}
-            onImg={(amount: Amount) =>
-              applyPreset({ tabIcon: 'image', modelName: NANO_MODELS[prefs.nanoModel], subText: amount, modelMatch: 'exact' })
-            }
-            onVid={(amount: Amount) =>
-              applyPreset({ tabIcon: 'videocam', modelName: VEO_MODELS[prefs.veoModel], subText: amount, modelMatch: 'exact' })
-            }
-            onOmniDur={(duration: Duration) =>
+            onImg={(amount) => applyPreset({ tabIcon: 'image', modelName: prefs.nanoModel, subText: amount })}
+            onVeoDuration={(duration) => {
               applyPreset({
                 tabIcon: 'videocam',
-                modelName: OMNI_MODEL,
+                mode: prefs.veoVideoMode,
+                modelName: prefs.veoModel,
+                subText: duration,
+                amount: prefs.veoAmount,
+              });
+              setVideoActive({ mode: prefs.veoVideoMode, modelLabel: prefs.veoModel });
+            }}
+            onVeoResolution={(resolution) => {
+              applyPreset({ tabIcon: 'videocam', mode: prefs.veoVideoMode, modelName: prefs.veoModel, subText: resolution });
+              setVideoActive({ mode: prefs.veoVideoMode, modelLabel: prefs.veoModel });
+            }}
+            onOmniDuration={(modelLabel, duration) => {
+              applyPreset({
+                tabIcon: 'videocam',
+                mode: prefs.omniVideoMode,
+                modelName: modelLabel,
                 subText: duration,
                 amount: prefs.omniAmount,
-                modelMatch: 'loose',
-              })
-            }
+              });
+              setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
+            }}
+            onOmniResolution={(modelLabel, resolution) => {
+              applyPreset({ tabIcon: 'videocam', mode: prefs.omniVideoMode, modelName: modelLabel, subText: resolution });
+              setVideoActive({ mode: prefs.omniVideoMode, modelLabel });
+            }}
           />
         )}
       </div>
