@@ -1,6 +1,6 @@
 import { render } from 'preact';
 import { App } from './components/App';
-import './style.css';
+import './style.scss';
 
 const root = document.createElement('div');
 root.id = 'flow-tools-root';

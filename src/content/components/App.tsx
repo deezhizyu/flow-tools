@@ -13,7 +13,7 @@ import { RefreshButton } from './RefreshButton';
 import { TileQuickActions } from './TileQuickActions';
 import { ToggleButton } from './ToggleButton';
 
-// Matches #ft-widget's fixed bottom/right in style.css, to derive the
+// Matches #ft-widget's fixed bottom/right in style.scss, to derive the
 // button's screen position from the drag offset alone.
 const WIDGET_ANCHOR = 16;
 
