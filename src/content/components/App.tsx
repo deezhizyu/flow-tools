@@ -5,10 +5,12 @@ import { useFlowSync } from '../hooks/useFlowSync';
 import { useInstantReveal } from '../hooks/useInstantReveal';
 import { useModelScan } from '../hooks/useModelScan';
 import { usePrefs } from '../hooks/usePrefs';
+import { useTileHover } from '../hooks/useTileHover';
 import { ClearRefsButton } from './ClearRefsButton';
 import { Overlay } from './Overlay';
 import { PasteButton } from './PasteButton';
 import { RefreshButton } from './RefreshButton';
+import { TileQuickActions } from './TileQuickActions';
 import { ToggleButton } from './ToggleButton';
 
 // Matches #fqs-widget's fixed bottom/right in style.css, to derive the
@@ -53,6 +55,7 @@ export function App() {
     setScan,
   } = usePrefs();
   const { offset, onPointerDown, onPointerMove, onPointerUp } = useDraggable(prefs.buttonOffset, setButtonOffset);
+  const hoveredTile = useTileHover();
   const { scan, scanning, refresh } = useModelScan(!!box, prefsLoaded, prefs.scan, setScan);
   const presets = useFlowPresets({
     prefs,
@@ -106,6 +109,7 @@ export function App() {
       {clearRefsPos && (
         <ClearRefsButton top={clearRefsPos.top} left={clearRefsPos.left} visible={!panelOpen} onClear={() => void clearReferences()} />
       )}
+      {hoveredTile && <TileQuickActions state={hoveredTile} />}
     </>
   );
 }

@@ -306,3 +306,131 @@ body.fqs-automating [role='menu'] {
   transform: translate(-50%, -50%);
   font-size: 12px;
 }
+
+/* Matches Flow's own favorite/reuse/more_vert pill: opacity plus the
+   translateY(-10px) it drives via JS, animated in on mount and back out on
+   mouseleave with no delay. This is a CSS animation rather than a
+   transition because a transition needs a previously-painted "from" state,
+   which a freshly-mounted element never has, so it wouldn't play on the
+   very first hover — swapping animation-name via fqs-hidden below replays
+   the right one on every show/hide instead. DOM order alone (this root is
+   appended before Flow's dropdown-menu portal) keeps it below an open
+   context menu, so no explicit z-index is set here. */
+.fqs-tile-actions-group {
+  position: absolute;
+  /* Sits directly below Flow's own favorite/reuse/more_vert pill, which
+     bottoms out 46px from the tile's top edge — measured live, since it's a
+     sibling pill Flow lays out itself rather than something computable
+     here. Right-aligned to match it too, offset in from the tile edge the
+     same way. */
+  top: 52px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.4);
+  /* No blur until the entrance animation finishes — the second, near-zero-
+     duration animation below is delayed exactly 0.2s so it snaps on right
+     as fqs-tile-actions-in ends, instead of easing in alongside it. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation:
+    fqs-tile-actions-in 0.2s ease-out forwards,
+    fqs-tile-actions-blur-in 0.01s linear 0.2s forwards;
+}
+
+.fqs-tile-actions-group.fqs-hidden {
+  pointer-events: none;
+  /* Stripped instantly (not part of fqs-tile-actions-out) so the blur is
+     already gone before the fade-out starts playing. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation: fqs-tile-actions-out 0.2s ease-out forwards;
+}
+
+@keyframes fqs-tile-actions-in {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes fqs-tile-actions-blur-in {
+  to {
+    -webkit-backdrop-filter: blur(80px);
+    backdrop-filter: blur(80px);
+  }
+}
+
+@keyframes fqs-tile-actions-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+}
+
+.fqs-tile-action-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: rgba(27, 27, 27, 0.9);
+}
+
+.fqs-tile-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.fqs-tile-action-btn:active,
+.fqs-tile-action-btn.fqs-pressed {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+.fqs-tile-action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.fqs-tile-action-btn.fqs-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* "Google Symbols" is already loaded by Flow's own page — reusing it here
+   keeps these icons pixel-identical to Flow's, with no extra font to ship. */
+.fqs-tile-action-btn .fqs-gsym {
+  font-family: 'Google Symbols';
+  font-size: 18.4px;
+  line-height: 1;
+  font-style: normal;
+  transition: opacity 0.15s ease;
+}
+
+.fqs-tile-action-btn .fqs-gsym.fqs-gsym-hidden {
+  opacity: 0;
+}
+
+.fqs-gsym-stack {
+  position: relative;
+  display: inline-flex;
+}
+
+.fqs-gsym-stacked {
+  position: absolute;
+  inset: 0;
+}

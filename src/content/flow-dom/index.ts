@@ -1,5 +1,6 @@
 export { isVisible } from './dom-utils';
 export { getFlowRouteMode, applyPromptMaxHeight, getPromptScrollContainer, type FlowRouteMode } from './layout';
+export { findTileRoot, getTileMedia, moveTileToTrash, type TileMedia } from './gallery';
 export { textContainsModelWords } from './model-match';
 export { findMainTrigger, getPanel, getPromptBox, getPromptWidget } from './panel';
 export { applyAmount, applyPreset, applyVideoMode, type ApplyPresetOptions } from './presets';

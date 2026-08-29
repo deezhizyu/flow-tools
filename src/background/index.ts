@@ -1,5 +1,5 @@
 import { AMOUNTS, SECTION_IDS, type ScanActiveState, type ScannedModel, type VideoModeScan } from '../lib/models';
-import { DEFAULT_PREFS, type Message, type Prefs } from '../lib/messaging';
+import { DEFAULT_PREFS, type Message, type Prefs, type PrefsMessage } from '../lib/messaging';
 
 // No DOM access here, so labels can only be shape-checked, not matched
 // against Flow's live menu.
@@ -117,7 +117,7 @@ async function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]): Promise<
   return getPrefs();
 }
 
-async function handleMessage(message: Message): Promise<Prefs> {
+async function handleMessage(message: PrefsMessage): Promise<Prefs> {
   switch (message.type) {
     case 'GET_PREFS':
       return getPrefs();
@@ -126,7 +126,42 @@ async function handleMessage(message: Message): Promise<Prefs> {
   }
 }
 
+// Downloads bypass CORS entirely (Chrome's download manager makes its own
+// request), so the redirect URL can be handed straight through.
+async function downloadMedia(url: string): Promise<{ ok: boolean }> {
+  try {
+    await chrome.downloads.download({ url });
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
+// No FileReader in a service worker, so the bytes are base64-encoded by
+// hand instead.
+async function fetchImageDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    const contentType = response.headers.get('content-type') || 'image/png';
+    return `data:${contentType};base64,${btoa(binary)}`;
+  } catch {
+    return null;
+  }
+}
+
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
+  if (message.type === 'DOWNLOAD_MEDIA') {
+    downloadMedia(message.url).then(sendResponse);
+    return true;
+  }
+  if (message.type === 'FETCH_IMAGE_DATA_URL') {
+    fetchImageDataUrl(message.url).then(sendResponse);
+    return true;
+  }
   handleMessage(message).then(sendResponse);
   return true; // keep the message channel open for the async response
 });
