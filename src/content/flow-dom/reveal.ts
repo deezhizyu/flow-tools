@@ -24,10 +24,16 @@ function findBlurLayer(root: Element): HTMLElement | null {
   return null;
 }
 
+// Scoped by the blur layer alone, not the image: with several generations
+// running at once a tile's own <img> often isn't in the DOM yet when its
+// badge first appears, so requiring one here made the walk skip the correct
+// (still image-less) tile and latch onto a broader shared ancestor that
+// happened to contain a different tile's image — revealTile() below already
+// waits for the image on whatever tile is returned.
 function findTile(badge: Element): HTMLElement | null {
   let node = badge.parentElement;
   while (node && node !== document.body) {
-    if (node.querySelector('img') && findBlurLayer(node)) return node;
+    if (findBlurLayer(node)) return node;
     node = node.parentElement;
   }
   return null;
