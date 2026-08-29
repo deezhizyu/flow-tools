@@ -19,7 +19,7 @@ Collapsible quick-select buttons for Nano Banana, Veo 3.1, and Omni Flash on [Go
 - [x] Limit prompt textarea height to 100px
 - [x] Remove slow loading blur fade for generations
 - [ ] Advanced settings page
-- [ ] Quick buttons on hover: copy an image, move to trash, download
+- [x] Quick buttons on hover: copy an image, move to trash, download
 
 ## How to install
 
