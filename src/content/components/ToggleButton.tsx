@@ -21,8 +21,8 @@ export function ToggleButton(props: ToggleButtonProps) {
   return (
     <button
       type="button"
-      id="fqs-toggle-btn"
-      class={cx('fqs-round-btn', pressed && 'fqs-pressed')}
+      id="ft-toggle-btn"
+      class={cx('ft-round-btn', pressed && 'ft-pressed')}
       title={props.open ? 'Hide overlay' : 'Show overlay'}
       onPointerDown={props.onPointerDown}
       onPointerMove={props.onPointerMove}

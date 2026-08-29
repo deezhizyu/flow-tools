@@ -148,7 +148,7 @@ export function waitForTriggerByText(fallbackPanel: HTMLElement, text: string): 
 // class hides it via CSS instead of styling element references directly,
 // since a tab switch mid-operation can remount it.
 function setAutomating(active: boolean): void {
-  document.body.classList.toggle('fqs-automating', active);
+  document.body.classList.toggle('ft-automating', active);
 }
 
 export async function withPanel<T>(work: (panel: HTMLElement) => Promise<T>): Promise<T | undefined> {

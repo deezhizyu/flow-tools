@@ -53,17 +53,17 @@ function whenPaintReady(img: HTMLImageElement): Promise<void> {
 async function revealTile(tile: HTMLElement): Promise<void> {
   const blurLayer = await waitFor(() => findBlurLayer(tile));
   if (!blurLayer) return;
-  blurLayer.classList.add('fqs-reveal-hold');
+  blurLayer.classList.add('ft-reveal-hold');
 
   const img = await waitFor(() => tile.querySelector('img'));
   if (!img) return;
   await whenPaintReady(img);
 
-  blurLayer.classList.remove('fqs-reveal-hold');
-  blurLayer.classList.add('fqs-reveal-done');
-  img.classList.add('fqs-reveal-done');
+  blurLayer.classList.remove('ft-reveal-hold');
+  blurLayer.classList.add('ft-reveal-done');
+  img.classList.add('ft-reveal-done');
   for (const sibling of blurLayer.parentElement?.children ?? []) {
-    if (sibling !== blurLayer) sibling.classList.add('fqs-reveal-hide');
+    if (sibling !== blurLayer) sibling.classList.add('ft-reveal-hide');
   }
 }
 

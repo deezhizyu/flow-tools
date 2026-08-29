@@ -25,7 +25,7 @@ export function FloatingIconButton(props: FloatingIconButtonProps) {
     <button
       type="button"
       id={props.id}
-      class={cx('fqs-floating-btn', pressed && 'fqs-pressed', !props.visible && 'fqs-hidden')}
+      class={cx('ft-floating-btn', pressed && 'ft-pressed', !props.visible && 'ft-hidden')}
       style={{ top: `${props.top}px`, left: `${props.left}px` }}
       title={props.title}
       onClick={handleClick}

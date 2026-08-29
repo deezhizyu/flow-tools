@@ -10,16 +10,16 @@ interface ClearRefsButtonProps {
 export function ClearRefsButton(props: ClearRefsButtonProps) {
   return (
     <FloatingIconButton
-      id="fqs-clear-refs-btn"
+      id="ft-clear-refs-btn"
       top={props.top}
       left={props.left}
       visible={props.visible}
       title="Clear references (keeps prompt text)"
       onPress={props.onClear}
     >
-      <span class="fqs-clear-refs-icon">
-        <span class="fqs-clear-refs-base">🖼️</span>
-        <span class="fqs-clear-refs-overlay">❌</span>
+      <span class="ft-clear-refs-icon">
+        <span class="ft-clear-refs-base">🖼️</span>
+        <span class="ft-clear-refs-overlay">❌</span>
       </span>
     </FloatingIconButton>
   );

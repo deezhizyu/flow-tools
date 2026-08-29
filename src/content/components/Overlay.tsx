@@ -83,14 +83,14 @@ function Section(props: {
   children: ComponentChildren;
 }) {
   return (
-    <div class="fqs-group">
-      <button type="button" class="fqs-section-toggle" aria-expanded={props.expanded} onClick={() => props.onToggle(props.id)}>
+    <div class="ft-group">
+      <button type="button" class="ft-section-toggle" aria-expanded={props.expanded} onClick={() => props.onToggle(props.id)}>
         <span>{props.label}</span>
-        <span class="fqs-chevron google-symbols" aria-hidden="true">
+        <span class="ft-chevron google-symbols" aria-hidden="true">
           {props.expanded ? 'arrow_drop_up' : 'arrow_drop_down'}
         </span>
       </button>
-      <div class="fqs-section-body" hidden={!props.expanded}>
+      <div class="ft-section-body" hidden={!props.expanded}>
         {props.children}
       </div>
     </div>
@@ -100,7 +100,7 @@ function Section(props: {
 function PresetButton(props: { active: boolean; label: string; onPress: () => void }) {
   const [pressed, press] = usePressed();
   return (
-    <button type="button" class={cx(props.active && 'fqs-active', pressed && 'fqs-pressed')} onClick={() => press(props.onPress)}>
+    <button type="button" class={cx(props.active && 'ft-active', pressed && 'ft-pressed')} onClick={() => press(props.onPress)}>
       {props.label}
     </button>
   );
@@ -113,7 +113,7 @@ function PresetRow<T extends string>(props: {
   onSelect: (value: T) => void;
 }) {
   return (
-    <div class="fqs-row">
+    <div class="ft-row">
       {props.values.map((value) => (
         <PresetButton key={value} label={props.labels?.[value] ?? value} active={props.active === value} onPress={() => props.onSelect(value)} />
       ))}
@@ -163,7 +163,7 @@ export function Overlay(props: OverlayProps) {
   const omniResolutions = omniScanModel?.resolutions ?? [];
 
   return (
-    <div id="fqs-overlay" class={cx(!props.visible && 'fqs-hidden')}>
+    <div id="ft-overlay" class={cx(!props.visible && 'ft-hidden')}>
       <Section id="nano" label="Nano Banana" expanded={props.sectionsExpanded.nano} onToggle={props.onToggleSection}>
         <ModelRow values={resolvedNanoModels} base={NANO_BASE} active={prefs.nanoModel} onSelect={props.onSetNanoModel} />
         <PresetRow values={AMOUNTS} active={props.nanoActive ? props.count : null} onSelect={props.onImg} />

@@ -4,8 +4,8 @@
    (it would otherwise visibly flicker open/click through options on its
    own). Covers both the panel and its nested model dropdown; pointer-events
    is disabled so a hidden, mid-flight panel can't catch a stray real click. */
-body.fqs-automating .DropdownMenuContent,
-body.fqs-automating [role='menu'] {
+body.ft-automating .DropdownMenuContent,
+body.ft-automating [role='menu'] {
   opacity: 0 !important;
   pointer-events: none !important;
 }
@@ -13,21 +13,21 @@ body.fqs-automating [role='menu'] {
 /* Used by reveal.ts: -hold pins the blur layer hidden while readiness is
    confirmed (Flow's own fade-in starts before that point); -done/-hide
    replace the multi-second settle with an instant cut once confirmed. */
-.fqs-reveal-hold {
+.ft-reveal-hold {
   opacity: 0 !important;
 }
 
-.fqs-reveal-done {
+.ft-reveal-done {
   --blur-amount: 0px !important;
   opacity: 1 !important;
 }
 
-.fqs-reveal-hide {
+.ft-reveal-hide {
   display: none !important;
 }
 
-#fqs-widget {
-  --fqs-btn-size: 32px;
+#ft-widget {
+  --ft-btn-size: 32px;
   position: fixed;
   bottom: 16px;
   right: 16px;
@@ -36,24 +36,24 @@ body.fqs-automating [role='menu'] {
 
 /* Kept mounted and toggled via this class instead of being added/removed
    from the DOM, so the opacity transition has something to animate between. */
-#fqs-widget,
-#fqs-overlay,
-#fqs-refresh-btn,
-#fqs-paste-btn,
-#fqs-clear-refs-btn {
+#ft-widget,
+#ft-overlay,
+#ft-refresh-btn,
+#ft-paste-btn,
+#ft-clear-refs-btn {
   transition: opacity 0.1s ease;
 }
 
-#fqs-widget.fqs-hidden,
-#fqs-overlay.fqs-hidden,
-#fqs-refresh-btn.fqs-hidden,
-#fqs-paste-btn.fqs-hidden,
-#fqs-clear-refs-btn.fqs-hidden {
+#ft-widget.ft-hidden,
+#ft-overlay.ft-hidden,
+#ft-refresh-btn.ft-hidden,
+#ft-paste-btn.ft-hidden,
+#ft-clear-refs-btn.ft-hidden {
   opacity: 0;
   pointer-events: none;
 }
 
-.fqs-round-btn {
+.ft-round-btn {
   all: unset;
   box-sizing: border-box;
   position: absolute;
@@ -61,8 +61,8 @@ body.fqs-automating [role='menu'] {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  width: var(--fqs-btn-size);
-  height: var(--fqs-btn-size);
+  width: var(--ft-btn-size);
+  height: var(--ft-btn-size);
   font-size: 18px;
   line-height: 1;
   color: rgba(255, 255, 255, 0.9);
@@ -77,47 +77,47 @@ body.fqs-automating [role='menu'] {
   touch-action: none;
 }
 
-.fqs-round-btn:hover {
+.ft-round-btn:hover {
   background-color: rgba(48, 50, 52, 0.9);
 }
 
-.fqs-round-btn:active,
-.fqs-round-btn.fqs-pressed {
+.ft-round-btn:active,
+.ft-round-btn.ft-pressed {
   background-color: rgba(68, 70, 72, 0.9);
 }
 
-#fqs-toggle-btn {
+#ft-toggle-btn {
   right: 0;
   bottom: 0;
   cursor: grab;
 }
 
-#fqs-toggle-btn:active,
-#fqs-toggle-btn.fqs-pressed {
+#ft-toggle-btn:active,
+#ft-toggle-btn.ft-pressed {
   cursor: grabbing;
 }
 
-/* Mirrored to the toggle's right under fqs-align-left below, since the
+/* Mirrored to the toggle's right under ft-align-left below, since the
    overlay then grows rightward and needs the toggle's left side clear. */
-#fqs-refresh-btn {
-  right: calc(var(--fqs-btn-size) + 8px);
+#ft-refresh-btn {
+  right: calc(var(--ft-btn-size) + 8px);
   bottom: 0;
 }
 
-#fqs-widget.fqs-align-left #fqs-refresh-btn {
+#ft-widget.ft-align-left #ft-refresh-btn {
   left: 8px;
   right: auto;
 }
 
-#fqs-refresh-btn:disabled {
+#ft-refresh-btn:disabled {
   cursor: default;
 }
 
-#fqs-refresh-btn.fqs-spinning span {
-  animation: fqs-spin 0.9s linear infinite;
+#ft-refresh-btn.ft-spinning span {
+  animation: ft-spin 0.9s linear infinite;
 }
 
-@keyframes fqs-spin {
+@keyframes ft-spin {
   from {
     transform: rotate(0deg);
   }
@@ -128,7 +128,7 @@ body.fqs-automating [role='menu'] {
 
 /* 40px = 32px button + 8px gap, so the overlay grows upward from a fixed
    point below the button instead of riding its own changing height. */
-#fqs-overlay {
+#ft-overlay {
   position: absolute;
   right: 0;
   bottom: 40px;
@@ -151,25 +151,25 @@ body.fqs-automating [role='menu'] {
   color: rgb(255, 255, 255);
 }
 
-#fqs-widget.fqs-open-below #fqs-overlay {
+#ft-widget.ft-open-below #ft-overlay {
   top: 8px;
   bottom: auto;
 }
 
 /* The button sits pinned at right:0, so its left edge is one button-width
    left of the widget's own x:0 anchor — aligned to here, not to x:0. */
-#fqs-widget.fqs-align-left #fqs-overlay {
-  left: calc(-1 * var(--fqs-btn-size));
+#ft-widget.ft-align-left #ft-overlay {
+  left: calc(-1 * var(--ft-btn-size));
   right: auto;
 }
 
-#fqs-overlay .fqs-group {
+#ft-overlay .ft-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-#fqs-overlay .fqs-section-toggle {
+#ft-overlay .ft-section-toggle {
   all: unset;
   box-sizing: border-box;
   display: flex;
@@ -184,26 +184,26 @@ body.fqs-automating [role='menu'] {
   transition: background-color 0.1s ease;
 }
 
-#fqs-overlay .fqs-section-toggle:hover {
+#ft-overlay .ft-section-toggle:hover {
   background-color: rgba(218, 220, 224, 0.05);
 }
 
-#fqs-overlay .fqs-chevron {
+#ft-overlay .ft-chevron {
   display: inline-flex;
   line-height: 1;
 }
 
-#fqs-overlay .fqs-section-body {
+#ft-overlay .ft-section-body {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-#fqs-overlay .fqs-section-body[hidden] {
+#ft-overlay .ft-section-body[hidden] {
   display: none;
 }
 
-#fqs-overlay .fqs-row {
+#ft-overlay .ft-row {
   display: flex;
   justify-content: space-around;
   height: 34px;
@@ -211,7 +211,7 @@ body.fqs-automating [role='menu'] {
   background-color: rgba(218, 220, 224, 0.05);
 }
 
-#fqs-overlay button {
+#ft-overlay button {
   all: unset;
   box-sizing: border-box;
   position: relative;
@@ -229,26 +229,26 @@ body.fqs-automating [role='menu'] {
   transition: background-color 0.1s ease;
 }
 
-#fqs-overlay button:hover {
+#ft-overlay button:hover {
   background-color: rgba(218, 220, 224, 0.05);
 }
 
-#fqs-overlay button:active {
+#ft-overlay button:active {
   background-color: rgba(218, 220, 224, 0.05);
 }
 
 /* Mirrors Flow's own [data-state="active"] pill color. */
-#fqs-overlay button.fqs-active {
+#ft-overlay button.ft-active {
   background-color: rgba(218, 220, 224, 0.18);
 }
 
-/* Declared after .fqs-active so a click flash is still visible on an
+/* Declared after .ft-active so a click flash is still visible on an
    already-active button. */
-#fqs-overlay button.fqs-pressed {
+#ft-overlay button.ft-pressed {
   background-color: rgba(218, 220, 224, 0.25);
 }
 
-.fqs-floating-btn {
+.ft-floating-btn {
   all: unset;
   box-sizing: border-box;
   position: fixed;
@@ -271,20 +271,20 @@ body.fqs-automating [role='menu'] {
   transition: background-color 0.1s ease;
 }
 
-.fqs-floating-btn:hover {
+.ft-floating-btn:hover {
   background-color: rgba(48, 50, 52, 0.9);
 }
 
-.fqs-floating-btn:active,
-.fqs-floating-btn.fqs-pressed {
+.ft-floating-btn:active,
+.ft-floating-btn.ft-pressed {
   background-color: rgba(68, 70, 72, 0.9);
 }
 
-#fqs-paste-btn {
+#ft-paste-btn {
   font-size: 14px;
 }
 
-.fqs-clear-refs-icon {
+.ft-clear-refs-icon {
   position: relative;
   display: flex;
   align-items: center;
@@ -293,12 +293,12 @@ body.fqs-automating [role='menu'] {
   font-size: 14px;
 }
 
-.fqs-clear-refs-base {
+.ft-clear-refs-base {
   position: relative;
   z-index: 1;
 }
 
-.fqs-clear-refs-overlay {
+.ft-clear-refs-overlay {
   position: absolute;
   z-index: 2;
   top: 50%;
@@ -312,11 +312,11 @@ body.fqs-automating [role='menu'] {
    mouseleave with no delay. This is a CSS animation rather than a
    transition because a transition needs a previously-painted "from" state,
    which a freshly-mounted element never has, so it wouldn't play on the
-   very first hover — swapping animation-name via fqs-hidden below replays
+   very first hover — swapping animation-name via ft-hidden below replays
    the right one on every show/hide instead. DOM order alone (this root is
    appended before Flow's dropdown-menu portal) keeps it below an open
    context menu, so no explicit z-index is set here. */
-.fqs-tile-actions-group {
+.ft-tile-actions-group {
   position: absolute;
   /* Sits directly below Flow's own favorite/reuse/more_vert pill, which
      bottoms out 46px from the tile's top edge — measured live, since it's a
@@ -333,24 +333,24 @@ body.fqs-automating [role='menu'] {
   box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.4);
   /* No blur until the entrance animation finishes — the second, near-zero-
      duration animation below is delayed exactly 0.2s so it snaps on right
-     as fqs-tile-actions-in ends, instead of easing in alongside it. */
+     as ft-tile-actions-in ends, instead of easing in alongside it. */
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   animation:
-    fqs-tile-actions-in 0.2s ease-out forwards,
-    fqs-tile-actions-blur-in 0.01s linear 0.2s forwards;
+    ft-tile-actions-in 0.2s ease-out forwards,
+    ft-tile-actions-blur-in 0.01s linear 0.2s forwards;
 }
 
-.fqs-tile-actions-group.fqs-hidden {
+.ft-tile-actions-group.ft-hidden {
   pointer-events: none;
-  /* Stripped instantly (not part of fqs-tile-actions-out) so the blur is
+  /* Stripped instantly (not part of ft-tile-actions-out) so the blur is
      already gone before the fade-out starts playing. */
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  animation: fqs-tile-actions-out 0.2s ease-out forwards;
+  animation: ft-tile-actions-out 0.2s ease-out forwards;
 }
 
-@keyframes fqs-tile-actions-in {
+@keyframes ft-tile-actions-in {
   from {
     opacity: 0;
     translate: 0 -10px;
@@ -361,14 +361,14 @@ body.fqs-automating [role='menu'] {
   }
 }
 
-@keyframes fqs-tile-actions-blur-in {
+@keyframes ft-tile-actions-blur-in {
   to {
     -webkit-backdrop-filter: blur(80px);
     backdrop-filter: blur(80px);
   }
 }
 
-@keyframes fqs-tile-actions-out {
+@keyframes ft-tile-actions-out {
   from {
     opacity: 1;
     translate: 0 0;
@@ -379,7 +379,7 @@ body.fqs-automating [role='menu'] {
   }
 }
 
-.fqs-tile-action-btn {
+.ft-tile-action-btn {
   all: unset;
   box-sizing: border-box;
   display: flex;
@@ -392,28 +392,28 @@ body.fqs-automating [role='menu'] {
   color: rgba(27, 27, 27, 0.9);
 }
 
-.fqs-tile-action-btn:hover {
+.ft-tile-action-btn:hover {
   background-color: rgba(255, 255, 255, 0.5);
 }
 
-.fqs-tile-action-btn:active,
-.fqs-tile-action-btn.fqs-pressed {
+.ft-tile-action-btn:active,
+.ft-tile-action-btn.ft-pressed {
   background-color: rgba(255, 255, 255, 0.7);
 }
 
-.fqs-tile-action-btn:disabled {
+.ft-tile-action-btn:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.fqs-tile-action-btn.fqs-hidden {
+.ft-tile-action-btn.ft-hidden {
   opacity: 0;
   pointer-events: none;
 }
 
 /* "Google Symbols" is already loaded by Flow's own page — reusing it here
    keeps these icons pixel-identical to Flow's, with no extra font to ship. */
-.fqs-tile-action-btn .fqs-gsym {
+.ft-tile-action-btn .ft-gsym {
   font-family: 'Google Symbols';
   font-size: 18.4px;
   line-height: 1;
@@ -421,16 +421,16 @@ body.fqs-automating [role='menu'] {
   transition: opacity 0.15s ease;
 }
 
-.fqs-tile-action-btn .fqs-gsym.fqs-gsym-hidden {
+.ft-tile-action-btn .ft-gsym.ft-gsym-hidden {
   opacity: 0;
 }
 
-.fqs-gsym-stack {
+.ft-gsym-stack {
   position: relative;
   display: inline-flex;
 }
 
-.fqs-gsym-stacked {
+.ft-gsym-stacked {
   position: absolute;
   inset: 0;
 }

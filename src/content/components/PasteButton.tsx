@@ -10,7 +10,7 @@ interface PasteButtonProps {
 export function PasteButton(props: PasteButtonProps) {
   return (
     <FloatingIconButton
-      id="fqs-paste-btn"
+      id="ft-paste-btn"
       top={props.top}
       left={props.left}
       visible={props.visible}

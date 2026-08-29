@@ -13,7 +13,7 @@ import { RefreshButton } from './RefreshButton';
 import { TileQuickActions } from './TileQuickActions';
 import { ToggleButton } from './ToggleButton';
 
-// Matches #fqs-widget's fixed bottom/right in style.css, to derive the
+// Matches #ft-widget's fixed bottom/right in style.css, to derive the
 // button's screen position from the drag offset alone.
 const WIDGET_ANCHOR = 16;
 
@@ -74,7 +74,7 @@ export function App() {
   if (!box) return null;
 
   const { openBelow, alignLeft } = computePlacement(offset, box.getBoundingClientRect());
-  const widgetClass = [openBelow && 'fqs-open-below', alignLeft && 'fqs-align-left', isEditPage && 'fqs-hidden']
+  const widgetClass = [openBelow && 'ft-open-below', alignLeft && 'ft-align-left', isEditPage && 'ft-hidden']
     .filter(Boolean)
     .join(' ');
 
@@ -82,7 +82,7 @@ export function App() {
     <>
       {/* Faded rather than unmounted on an edit page, so the opacity
           transition has something to animate between. */}
-      <div id="fqs-widget" class={widgetClass} style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
+      <div id="ft-widget" class={widgetClass} style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}>
         <ToggleButton
           open={prefs.overlayOpen}
           onToggle={() => setOverlayOpen(!prefs.overlayOpen)}

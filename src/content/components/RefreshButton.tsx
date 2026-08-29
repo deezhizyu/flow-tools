@@ -12,8 +12,8 @@ export function RefreshButton(props: RefreshButtonProps) {
   return (
     <button
       type="button"
-      id="fqs-refresh-btn"
-      class={cx('fqs-round-btn', props.scanning && 'fqs-spinning', pressed && 'fqs-pressed', !props.visible && 'fqs-hidden')}
+      id="ft-refresh-btn"
+      class={cx('ft-round-btn', props.scanning && 'ft-spinning', pressed && 'ft-pressed', !props.visible && 'ft-hidden')}
       onClick={() => press(props.onRefresh)}
       disabled={props.scanning || !props.visible}
       title="Rescan Flow's models and options"

@@ -51,7 +51,7 @@ function ActionButton(props: ActionButtonProps) {
     <button
       type="button"
       id={props.id}
-      class={cx('fqs-tile-action-btn', pressed && 'fqs-pressed')}
+      class={cx('ft-tile-action-btn', pressed && 'ft-pressed')}
       title={props.title}
       onClick={handleClick}
       disabled={!props.visible}
@@ -61,12 +61,12 @@ function ActionButton(props: ActionButtonProps) {
         // transition below has an already-painted "from" state to animate
         // from — swapping the text content of a single <i> can't fade,
         // since there's no property change to transition between.
-        <span class="fqs-gsym-stack">
-          <i class={cx('fqs-gsym', props.showAlt && 'fqs-gsym-hidden')}>{props.icon}</i>
-          <i class={cx('fqs-gsym', 'fqs-gsym-stacked', !props.showAlt && 'fqs-gsym-hidden')}>{props.altIcon}</i>
+        <span class="ft-gsym-stack">
+          <i class={cx('ft-gsym', props.showAlt && 'ft-gsym-hidden')}>{props.icon}</i>
+          <i class={cx('ft-gsym', 'ft-gsym-stacked', !props.showAlt && 'ft-gsym-hidden')}>{props.altIcon}</i>
         </span>
       ) : (
-        <i class="fqs-gsym">{props.icon}</i>
+        <i class="ft-gsym">{props.icon}</i>
       )}
     </button>
   );
@@ -104,7 +104,7 @@ export function TileQuickActions(props: TileQuickActionsProps) {
   const buttons: { id: string; title: string; icon: string; altIcon?: string; showAlt?: boolean; onPress: () => void; visible: boolean }[] = [];
   if (media?.type === 'image') {
     buttons.push({
-      id: 'fqs-tile-copy-btn',
+      id: 'ft-tile-copy-btn',
       title: 'Copy image',
       icon: 'content_copy',
       altIcon: 'check',
@@ -121,7 +121,7 @@ export function TileQuickActions(props: TileQuickActionsProps) {
   }
   if (media) {
     buttons.push({
-      id: 'fqs-tile-download-btn',
+      id: 'ft-tile-download-btn',
       title: media.type === 'video' ? 'Download video' : 'Download image',
       icon: 'download',
       onPress: () => void downloadTileMedia(media),
@@ -129,7 +129,7 @@ export function TileQuickActions(props: TileQuickActionsProps) {
     });
   }
   buttons.push({
-    id: 'fqs-tile-trash-btn',
+    id: 'ft-tile-trash-btn',
     title: 'Move to trash',
     icon: 'delete',
     onPress: () => {
@@ -146,12 +146,12 @@ export function TileQuickActions(props: TileQuickActionsProps) {
   // drives its own favorite/reuse/more_vert row) drops the moment the
   // pointer leaves the tile for a separately-positioned sibling elsewhere in
   // body. Being an actual child of the tile also means plain `position:
-  // absolute` in CSS (see .fqs-tile-actions-group) is enough to track the
+  // absolute` in CSS (see .ft-tile-actions-group) is enough to track the
   // tile's own position — no rect/scroll tracking needed.
-  // Kept mounted and toggled via fqs-hidden (rather than removed outright
+  // Kept mounted and toggled via ft-hidden (rather than removed outright
   // once unhovered) so the opacity transition has something to animate.
   return createPortal(
-    <div class={cx('fqs-tile-actions-group', !visible && 'fqs-hidden')}>
+    <div class={cx('ft-tile-actions-group', !visible && 'ft-hidden')}>
       {buttons.map((btn) => (
         <ActionButton
           key={btn.id}

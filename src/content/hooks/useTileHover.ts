@@ -17,7 +17,7 @@ export function useTileHover(): TileHoverState | null {
 
     // Stays mounted at its last-known tile with visible:false rather than
     // unmounting outright, so the opacity/blur animation has something to
-    // animate from (same trick as #fqs-widget's own show/hide fade). Our
+    // animate from (same trick as #ft-widget's own show/hide fade). Our
     // buttons are portaled inside the tile itself (see TileQuickActions),
     // so this mouseout only ever fires for a genuine exit — no debounce
     // needed to bridge a gap to a separately-positioned overlay.
