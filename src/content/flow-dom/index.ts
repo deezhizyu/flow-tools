@@ -5,6 +5,7 @@ export { textContainsModelWords } from './model-match';
 export { findMainTrigger, getPanel, getPromptBox, getPromptWidget } from './panel';
 export { applyAmount, applyPreset, applyVideoMode, type ApplyPresetOptions } from './presets';
 export { clearReferences, pasteFromClipboard } from './prompt-actions';
+export { findReferencePreviewRoot, getReferencePreviewImageSrc } from './reference-preview';
 export { watchInstantReveal } from './reveal';
 export { scanFlow } from './scan';
 export { isNanoActive, readTriggerSummary, type TriggerSummary } from './trigger-summary';

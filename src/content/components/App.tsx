@@ -5,10 +5,12 @@ import { useFlowSync } from '../hooks/useFlowSync';
 import { useInstantReveal } from '../hooks/useInstantReveal';
 import { useModelScan } from '../hooks/useModelScan';
 import { usePrefs } from '../hooks/usePrefs';
+import { useReferenceHover } from '../hooks/useReferenceHover';
 import { useTileHover } from '../hooks/useTileHover';
 import { ClearRefsButton } from './ClearRefsButton';
 import { Overlay } from './Overlay';
 import { PasteButton } from './PasteButton';
+import { ReferenceQuickActions } from './ReferenceQuickActions';
 import { RefreshButton } from './RefreshButton';
 import { TileQuickActions } from './TileQuickActions';
 import { ToggleButton } from './ToggleButton';
@@ -56,6 +58,7 @@ export function App() {
   } = usePrefs();
   const { offset, onPointerDown, onPointerMove, onPointerUp } = useDraggable(prefs.buttonOffset, setButtonOffset);
   const hoveredTile = useTileHover();
+  const hoveredReference = useReferenceHover();
   const { scan, scanning, refresh } = useModelScan(!!box, prefsLoaded, prefs.scan, setScan);
   const presets = useFlowPresets({
     prefs,
@@ -110,6 +113,7 @@ export function App() {
         <ClearRefsButton top={clearRefsPos.top} left={clearRefsPos.left} visible={!panelOpen} onClear={() => void clearReferences()} />
       )}
       {hoveredTile && <TileQuickActions state={hoveredTile} />}
+      {hoveredReference && <ReferenceQuickActions state={hoveredReference} />}
     </>
   );
 }

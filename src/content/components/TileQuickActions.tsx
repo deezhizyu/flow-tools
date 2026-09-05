@@ -1,82 +1,16 @@
 import { createPortal } from 'preact/compat';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { requestDownload, requestImageDataUrl } from '../../lib/messaging';
+import { copyImageToClipboard } from '../clipboard';
 import { cx } from '../cx';
-import { moveTileToTrash, type TileMedia } from '../flow-dom';
-import { usePressed } from '../hooks/usePressed';
+import { moveTileToTrash } from '../flow-dom';
 import type { TileHoverState } from '../hooks/useTileHover';
+import { ActionButton } from './ActionButton';
 
-// The clipboard API only accepts a handful of MIME types for images (PNG,
-// not Flow's JPEG source), so the fetched bytes are re-encoded via canvas.
-async function toPngBlob(blob: Blob): Promise<Blob> {
-  const bitmap = await createImageBitmap(blob);
-  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bitmap, 0, 0);
-  return canvas.convertToBlob({ type: 'image/png' });
-}
-
-async function copyImageToClipboard(src: string): Promise<void> {
-  const dataUrl = await requestImageDataUrl(src);
-  if (!dataUrl) return;
-  const blob = await (await fetch(dataUrl)).blob();
-  const pngBlob = await toPngBlob(blob);
-  await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
-}
-
-async function downloadTileMedia(media: TileMedia): Promise<void> {
-  await requestDownload(media.src);
-}
-
-interface ActionButtonProps {
-  id: string;
-  icon: string;
-  altIcon?: string;
-  showAlt?: boolean;
-  title: string;
-  visible: boolean;
-  onPress: () => void;
-}
-
-function ActionButton(props: ActionButtonProps) {
-  const [pressed, press] = usePressed();
-
-  function handleClick(ev: MouseEvent) {
-    ev.preventDefault();
-    ev.stopPropagation();
-    press(props.onPress);
-  }
-
-  return (
-    <button
-      type="button"
-      id={props.id}
-      class={cx('ft-tile-action-btn', pressed && 'ft-pressed')}
-      title={props.title}
-      onClick={handleClick}
-      disabled={!props.visible}
-    >
-      {props.altIcon ? (
-        // Both icons stay mounted and only their opacity toggles, so the
-        // transition below has an already-painted "from" state to animate
-        // from — swapping the text content of a single <i> can't fade,
-        // since there's no property change to transition between.
-        <span class="ft-gsym-stack">
-          <i class={cx('ft-gsym', props.showAlt && 'ft-gsym-hidden')}>{props.icon}</i>
-          <i class={cx('ft-gsym', 'ft-gsym-stacked', !props.showAlt && 'ft-gsym-hidden')}>{props.altIcon}</i>
-        </span>
-      ) : (
-        <i class="ft-gsym">{props.icon}</i>
-      )}
-    </button>
-  );
-}
+const COPIED_ICON_MS = 2000;
 
 interface TileQuickActionsProps {
   state: TileHoverState;
 }
-
-const COPIED_ICON_MS = 2000;
 
 export function TileQuickActions(props: TileQuickActionsProps) {
   const [trashing, setTrashing] = useState(false);
@@ -116,15 +50,6 @@ export function TileQuickActions(props: TileQuickActionsProps) {
           copiedTimer.current = setTimeout(() => setCopied(false), COPIED_ICON_MS);
         });
       },
-      visible: true,
-    });
-  }
-  if (media) {
-    buttons.push({
-      id: 'ft-tile-download-btn',
-      title: media.type === 'video' ? 'Download video' : 'Download image',
-      icon: 'download',
-      onPress: () => void downloadTileMedia(media),
       visible: true,
     });
   }

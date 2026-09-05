@@ -126,17 +126,6 @@ async function handleMessage(message: PrefsMessage): Promise<Prefs> {
   }
 }
 
-// Downloads bypass CORS entirely (Chrome's download manager makes its own
-// request), so the redirect URL can be handed straight through.
-async function downloadMedia(url: string): Promise<{ ok: boolean }> {
-  try {
-    await chrome.downloads.download({ url });
-    return { ok: true };
-  } catch {
-    return { ok: false };
-  }
-}
-
 // No FileReader in a service worker, so the bytes are base64-encoded by
 // hand instead.
 async function fetchImageDataUrl(url: string): Promise<string | null> {
@@ -154,10 +143,6 @@ async function fetchImageDataUrl(url: string): Promise<string | null> {
 }
 
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
-  if (message.type === 'DOWNLOAD_MEDIA') {
-    downloadMedia(message.url).then(sendResponse);
-    return true;
-  }
   if (message.type === 'FETCH_IMAGE_DATA_URL') {
     fetchImageDataUrl(message.url).then(sendResponse);
     return true;

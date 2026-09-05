@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Flow Tools',
   version: pkg.version,
   description: pkg.description,
-  permissions: ['storage', 'downloads'],
+  permissions: ['storage'],
   // getMediaUrlRedirect (labs.google) 302s to signed, cross-origin
   // flow-content.google URLs — both need host_permissions for the
   // background worker's copy-to-clipboard fetch to bypass CORS.

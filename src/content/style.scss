@@ -324,21 +324,21 @@ body.ft-automating {
 // the right one on every show/hide instead. DOM order alone (this root is
 // appended before Flow's dropdown-menu portal) keeps it below an open
 // context menu, so no explicit z-index is set here.
-.ft-tile-actions-group {
+//
+// Flow's own tile/chip containers set pointer-events: none on themselves
+// (re-enabling it only on the specific children Flow renders) — since these
+// groups are portaled in as an extra child, they'd silently inherit that
+// none and never receive clicks without reasserting auto here explicitly.
+.ft-tile-actions-group,
+.ft-reference-actions-group {
   position: absolute;
-  // Sits directly below Flow's own favorite/reuse/more_vert pill, which
-  // bottoms out 46px from the tile's top edge — measured live, since it's a
-  // sibling pill Flow lays out itself rather than something computable
-  // here. Right-aligned to match it too, offset in from the tile edge the
-  // same way.
-  top: 52px;
-  right: 10px;
   display: flex;
   gap: 2px;
   padding: 4px;
   border-radius: 12px;
   background-color: rgba(255, 255, 255, 0.5);
   box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
   // No blur until the entrance animation finishes — the second, near-zero-
   // duration animation below is delayed exactly 0.2s so it snaps on right
   // as ft-tile-actions-in ends, instead of easing in alongside it.
@@ -356,6 +356,23 @@ body.ft-automating {
     backdrop-filter: none;
     animation: ft-tile-actions-out 0.2s ease-out forwards;
   }
+}
+
+.ft-tile-actions-group {
+  // Sits directly below Flow's own favorite/reuse/more_vert pill, which
+  // bottoms out 46px from the tile's top edge — measured live, since it's a
+  // sibling pill Flow lays out itself rather than something computable
+  // here. Right-aligned to match it too, offset in from the tile edge the
+  // same way.
+  top: 52px;
+  right: 10px;
+}
+
+// The reference-preview card Flow renders on hovering a reference chip has
+// no hover row of its own to sit below, so this just tucks into its corner.
+.ft-reference-actions-group {
+  top: 4px;
+  right: 4px;
 }
 
 @keyframes ft-tile-actions-in {
@@ -387,7 +404,7 @@ body.ft-automating {
   }
 }
 
-.ft-tile-action-btn {
+.ft-action-btn {
   all: unset;
   box-sizing: border-box;
   display: flex;
