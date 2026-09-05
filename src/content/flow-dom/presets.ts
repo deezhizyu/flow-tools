@@ -1,8 +1,7 @@
 import type { Amount, VideoMode } from '../../lib/models';
-import { sleep } from '../../lib/async';
 import { fullClick, waitFor } from './dom-utils';
 import { selectModelIfNeeded } from './model-match';
-import { clickTriggerByIcon, getPanel, getTriggers, VIDEO_MODE_ICON, waitForTriggerByText, withPanel } from './panel';
+import { clickTriggerByIcon, getPanel, VIDEO_MODE_ICON, waitForStableTriggers, waitForTriggerByText, withPanel } from './panel';
 
 export interface ApplyPresetOptions {
   tabIcon: 'image' | 'videocam';
@@ -17,16 +16,27 @@ export interface ApplyPresetOptions {
 
 export async function applyPreset({ tabIcon, mode, modelName, resolution, subText, amount }: ApplyPresetOptions): Promise<void> {
   await withPanel(async (openedPanel) => {
-    clickTriggerByIcon(openedPanel, tabIcon);
-    let panel = (await waitFor(getPanel)) || openedPanel;
+    let panel = openedPanel;
 
-    if (tabIcon === 'videocam' && mode) {
-      clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
+    // Switching tab/mode re-renders the whole row set below (including the
+    // model dropdown) a beat later — acting immediately can grab a button
+    // that's about to be replaced, so only proceed once it settles.
+    if (clickTriggerByIcon(panel, tabIcon)) {
       panel = (await waitFor(getPanel)) || panel;
+      panel = await waitForStableTriggers(panel);
     }
 
-    await selectModelIfNeeded(panel, modelName);
-    panel = (await waitFor(getPanel)) || panel;
+    if (tabIcon === 'videocam' && mode) {
+      if (clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode])) {
+        panel = (await waitFor(getPanel)) || panel;
+        panel = await waitForStableTriggers(panel);
+      }
+    }
+
+    if (await selectModelIfNeeded(panel, modelName)) {
+      panel = (await waitFor(getPanel)) || panel;
+      panel = await waitForStableTriggers(panel);
+    }
 
     // These rows can re-render a beat after the model switch, so poll
     // rather than assume they're already there.
@@ -42,9 +52,7 @@ export async function applyPreset({ tabIcon, mode, modelName, resolution, subTex
     }
 
     if (amount) {
-      await sleep(80);
-      panel = getPanel() || panel;
-      const amountBtn = getTriggers(panel).find((b) => b.textContent!.trim() === amount);
+      const amountBtn = await waitForTriggerByText(panel, amount);
       if (amountBtn) fullClick(amountBtn);
     }
   });
@@ -59,8 +67,11 @@ export async function applyAmount(amount: Amount): Promise<void> {
 
 export async function applyVideoMode(mode: VideoMode): Promise<void> {
   await withPanel(async (openedPanel) => {
-    clickTriggerByIcon(openedPanel, 'videocam');
-    const panel = (await waitFor(getPanel)) || openedPanel;
+    let panel = openedPanel;
+    if (clickTriggerByIcon(panel, 'videocam')) {
+      panel = (await waitFor(getPanel)) || panel;
+      panel = await waitForStableTriggers(panel);
+    }
     clickTriggerByIcon(panel, VIDEO_MODE_ICON[mode]);
   });
 }

@@ -162,7 +162,7 @@ export function useFlowSync(): FlowSyncState {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'style', 'data-state', 'aria-expanded'],
+      attributeFilter: ['class', 'style', 'aria-expanded'],
     });
     window.addEventListener('resize', scheduleTick);
     window.addEventListener('scroll', scheduleTick, true);

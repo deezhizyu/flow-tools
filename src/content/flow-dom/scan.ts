@@ -12,6 +12,7 @@ import {
   isAmountText,
   isDurationText,
   isResolutionText,
+  isTriggerActive,
   triggerIcon,
   VIDEO_MODE_ICON,
   waitForStableTriggers,
@@ -19,17 +20,10 @@ import {
 } from './panel';
 
 function snapshotActiveState(panel: HTMLElement): ScanActiveState {
-  const tab: 'image' | 'videocam' =
-    getTriggers(panel).find((b) => triggerIcon(b) === 'videocam')?.getAttribute('data-state') === 'active'
-      ? 'videocam'
-      : 'image';
-  const mode: VideoMode | null =
-    tab === 'videocam'
-      ? getTriggers(panel).find((b) => triggerIcon(b) === VIDEO_MODE_ICON.frames)?.getAttribute('data-state') ===
-        'active'
-        ? 'frames'
-        : 'ingredients'
-      : null;
+  const videocamBtn = getTriggers(panel).find((b) => triggerIcon(b) === 'videocam');
+  const tab: 'image' | 'videocam' = videocamBtn && isTriggerActive(videocamBtn) ? 'videocam' : 'image';
+  const framesBtn = getTriggers(panel).find((b) => triggerIcon(b) === VIDEO_MODE_ICON.frames);
+  const mode: VideoMode | null = tab === 'videocam' ? (framesBtn && isTriggerActive(framesBtn) ? 'frames' : 'ingredients') : null;
   const modelBtn = getModelMenuButton(panel);
   return {
     tab,
@@ -42,12 +36,16 @@ function snapshotActiveState(panel: HTMLElement): ScanActiveState {
 }
 
 async function restoreActiveState(panel: HTMLElement, snap: ScanActiveState): Promise<void> {
-  clickTriggerByIcon(panel, snap.tab);
-  panel = (await waitFor(getPanel)) || panel;
+  if (clickTriggerByIcon(panel, snap.tab)) {
+    panel = (await waitFor(getPanel)) || panel;
+    panel = await waitForStableTriggers(panel);
+  }
 
   if (snap.mode) {
-    clickTriggerByIcon(panel, VIDEO_MODE_ICON[snap.mode]);
-    panel = (await waitFor(getPanel)) || panel;
+    if (clickTriggerByIcon(panel, VIDEO_MODE_ICON[snap.mode])) {
+      panel = (await waitFor(getPanel)) || panel;
+      panel = await waitForStableTriggers(panel);
+    }
   }
   if (snap.modelLabel) {
     const switched = await selectModelIfNeeded(panel, snap.modelLabel);
@@ -97,14 +95,18 @@ export async function scanFlow(): Promise<ScanResult | null> {
     const snap = snapshotActiveState(openedPanel);
     let panel = openedPanel;
 
-    clickTriggerByIcon(panel, 'image');
-    panel = (await waitFor(getPanel)) || panel;
+    if (clickTriggerByIcon(panel, 'image')) {
+      panel = (await waitFor(getPanel)) || panel;
+      panel = await waitForStableTriggers(panel);
+    }
     if (!getPanel()) return null;
     const imageModels = await scanModelNames(panel);
     if (!getPanel()) return null;
 
-    clickTriggerByIcon(panel, 'videocam');
-    panel = (await waitFor(getPanel)) || panel;
+    if (clickTriggerByIcon(panel, 'videocam')) {
+      panel = (await waitFor(getPanel)) || panel;
+      panel = await waitForStableTriggers(panel);
+    }
     if (!getPanel()) return null;
 
     const framesResult = await scanVideoMode(panel, 'frames');

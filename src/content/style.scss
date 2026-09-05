@@ -18,7 +18,7 @@ $ft-transition-fast: 0.1s ease;
 // own). Covers both the panel and its nested model dropdown; pointer-events
 // is disabled so a hidden, mid-flight panel can't catch a stray real click.
 body.ft-automating {
-  .DropdownMenuContent,
+  .settings-content-overlay,
   [role='menu'] {
     opacity: 0 !important;
     pointer-events: none !important;

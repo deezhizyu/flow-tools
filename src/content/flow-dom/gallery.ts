@@ -5,11 +5,11 @@ export interface TileMedia {
   src: string;
 }
 
-// Flow stamps the same data-tile-id on both a tile's outer card wrapper and
-// an inner link wrapper — closest() finds whichever is nearest, but both
-// share the same getBoundingClientRect(), so it doesn't matter which.
+// <flow-grid-tile-container> wraps one tile's media plus its hover-reveal
+// action row (favorite/reuse/more_vert) — the media itself carries
+// data-media-id, but nothing further up does.
 export function findTileRoot(el: Element): HTMLElement | null {
-  return el.closest<HTMLElement>('[data-tile-id]');
+  return el.closest<HTMLElement>('flow-grid-tile-container');
 }
 
 export function getTileMedia(tile: HTMLElement): TileMedia | null {
@@ -49,11 +49,11 @@ function dispatchHoverEnter(tile: HTMLElement): void {
 // Flow's own menu labels.
 function findMenuTrigger(tile: HTMLElement): HTMLButtonElement | null {
   const buttons = Array.from(tile.querySelectorAll<HTMLButtonElement>('button'));
-  return buttons.find((b) => b.querySelector('i')?.textContent?.trim() === 'more_vert') || null;
+  return buttons.find((b) => b.querySelector('mat-icon')?.textContent?.trim() === 'more_vert') || null;
 }
 
-// A tile's context menu isn't Flow's settings-panel Radix popup (that one
-// carries a .DropdownMenuContent class) — just [role="menu"].
+// A tile's context menu isn't Flow's settings-panel overlay (that one
+// carries a .settings-content class) — just [role="menu"].
 function getVisibleMenu(): HTMLElement | null {
   const menus = Array.from(document.querySelectorAll<HTMLElement>('[role="menu"]'));
   return menus.find((m) => m.getBoundingClientRect().width > 0) || null;
@@ -68,7 +68,7 @@ export async function moveTileToTrash(tile: HTMLElement): Promise<boolean> {
   const menu = await waitFor(getVisibleMenu);
   if (!menu) return false;
   const deleteItem = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
-    (item) => item.querySelector('i')?.textContent?.trim() === 'delete'
+    (item) => item.querySelector('mat-icon')?.textContent?.trim() === 'delete'
   );
   if (!deleteItem) return false;
   fullClick(deleteItem);

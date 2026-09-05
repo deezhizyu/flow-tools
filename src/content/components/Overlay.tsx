@@ -28,6 +28,7 @@ interface OverlayProps {
   nanoActive: boolean;
   veoActive: boolean;
   omniActive: boolean;
+  videoModelLabel: string | null;
   // Shared across sections — each is meaningful only where the matching
   // *Active flag is true.
   count: Amount | null;
@@ -171,7 +172,12 @@ export function Overlay(props: OverlayProps) {
 
       <Section id="veo" label="Veo 3.1" expanded={props.sectionsExpanded.veo} onToggle={props.onToggleSection}>
         <VideoModeRow active={prefs.veoVideoMode} onSelect={props.onSetVeoMode} />
-        <ModelRow values={resolvedVeoModels} base={VEO_BASE} active={prefs.veoModel} onSelect={props.onSetVeoModel} />
+        <ModelRow
+          values={resolvedVeoModels}
+          base={VEO_BASE}
+          active={props.veoActive ? props.videoModelLabel : prefs.veoModel}
+          onSelect={props.onSetVeoModel}
+        />
         {veoResolutions.length > 0 && (
           <PresetRow values={veoResolutions} active={props.veoActive ? props.resolution : null} onSelect={props.onVeoResolution} />
         )}
@@ -183,7 +189,12 @@ export function Overlay(props: OverlayProps) {
 
       <Section id="omni" label={omniModel} expanded={props.sectionsExpanded.omni} onToggle={props.onToggleSection}>
         <VideoModeRow active={prefs.omniVideoMode} onSelect={props.onSetOmniMode} />
-        <ModelRow values={omniModels} base={OMNI_BASE} active={omniModel} onSelect={props.onSetOmniModel} />
+        <ModelRow
+          values={omniModels}
+          base={OMNI_BASE}
+          active={props.omniActive ? props.videoModelLabel : omniModel}
+          onSelect={props.onSetOmniModel}
+        />
         {omniResolutions.length > 0 && (
           <PresetRow
             values={omniResolutions}

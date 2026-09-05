@@ -1,22 +1,7 @@
-import { fullClick, isVisible, waitFor } from './dom-utils';
+import { elementLabelText, fullClick, isVisible, waitFor } from './dom-utils';
 import { getModelMenuButton, getPanel } from './panel';
 
-// Label text sits directly against an <i> icon ligature with no separator,
-// so a plain .textContent read fuses them into one token — walk text nodes
-// and skip anything under an <i>.
-export function modelLabelText(el: Element): string {
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      return node.parentElement && node.parentElement.closest('i')
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT;
-    },
-  });
-  const parts: string[] = [];
-  let n: Node | null;
-  while ((n = walker.nextNode())) parts.push(n.textContent || '');
-  return parts.join(' ').trim();
-}
+export const modelLabelText = elementLabelText;
 
 // Flow reorders/relabels model names around punctuation, so matching is
 // done on word sets rather than substrings.

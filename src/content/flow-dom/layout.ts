@@ -1,7 +1,7 @@
 // Flow's own scroll wrapper, one level above the contenteditable div —
 // wraps just the textbox, not the Frames/Ingredients row above it.
 export function getPromptScrollContainer(box: HTMLElement): HTMLElement | null {
-  return box.parentElement?.closest('[data-scroll-state]') ?? null;
+  return box.closest<HTMLElement>('flow-rich-text-editor') ?? null;
 }
 
 // Flow's own re-renders can overwrite this inline style, so it's reapplied

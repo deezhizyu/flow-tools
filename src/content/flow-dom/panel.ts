@@ -1,7 +1,7 @@
 import type { VideoMode } from '../../lib/models';
 import { sleep } from '../../lib/async';
 import { isBusy, setBusy } from './busy';
-import { fullClick, isVisible, waitFor } from './dom-utils';
+import { elementLabelText, fullClick, isVisible, waitFor } from './dom-utils';
 
 export function getPromptBox(): HTMLElement | null {
   const boxes = Array.from(document.querySelectorAll<HTMLElement>('[contenteditable="true"]'));
@@ -12,18 +12,9 @@ function getPromptContainer(box: HTMLElement): HTMLElement {
   return box.closest('div[class]')!.parentElement!.parentElement as HTMLElement;
 }
 
-// The only aria-haspopup button outside the panel whose icon ligature
-// starts with "crop_" (aspect ratio) — locale-independent, unlike its
-// label text.
 export function findMainTrigger(): HTMLButtonElement | null {
-  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="menu"]'));
-  return (
-    buttons.find((b) => {
-      if (b.closest('.DropdownMenuContent')) return false;
-      const icon = b.querySelector('i');
-      return !!icon && icon.textContent!.trim().startsWith('crop_');
-    }) || null
-  );
+  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.settings-trigger-button'));
+  return buttons.find(isVisible) || null;
 }
 
 // Frames mode inserts a Start/End row above the prompt box, so the widget's
@@ -39,48 +30,55 @@ export function getPromptWidget(box: HTMLElement, trigger = findMainTrigger()): 
 }
 
 export function getPanel(): HTMLElement | null {
-  const panels = Array.from(document.querySelectorAll<HTMLElement>('.DropdownMenuContent'));
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('.settings-content'));
   return panels.find(isVisible) || null;
 }
 
 // Every panel row (tabs, mode, aspect ratio, resolution, duration, amount)
-// is a `.flow_tab_slider_trigger`; icon rows carry an <i> ligature, plain-
-// text rows don't.
+// is a `<mat-button-toggle>` wrapping a `.mat-button-toggle-button` — the
+// button is what's clickable, the toggle wrapper is what carries the
+// "checked" state.
 export function getTriggers(panel: HTMLElement): HTMLButtonElement[] {
-  return Array.from(panel.querySelectorAll<HTMLButtonElement>('.flow_tab_slider_trigger'));
+  return Array.from(panel.querySelectorAll<HTMLButtonElement>('.mat-button-toggle-button'));
 }
 
 export function triggerIcon(btn: HTMLButtonElement): string | null {
-  return btn.querySelector('i')?.textContent?.trim() || null;
+  return btn.querySelector('mat-icon')?.textContent?.trim() || null;
+}
+
+export function isTriggerActive(btn: HTMLButtonElement): boolean {
+  return !!btn.closest('mat-button-toggle')?.classList.contains('mat-button-toggle-checked');
 }
 
 export function clickTriggerByIcon(panel: HTMLElement, iconName: string): boolean {
   const btn = getTriggers(panel).find((b) => triggerIcon(b) === iconName);
-  if (!btn || btn.getAttribute('data-state') === 'active') return false;
+  if (!btn || isTriggerActive(btn)) return false;
   fullClick(btn);
   return true;
 }
 
 export function clickTriggerByText(panel: HTMLElement, text: string): void {
-  const btn = getTriggers(panel).find((b) => !triggerIcon(b) && b.textContent!.trim() === text);
-  if (btn && btn.getAttribute('data-state') !== 'active') fullClick(btn);
+  const btn = getTriggers(panel).find((b) => elementLabelText(b) === text);
+  if (btn && !isTriggerActive(btn)) fullClick(btn);
 }
 
 export function activeTriggerText(panel: HTMLElement, matches: (text: string) => boolean): string | null {
-  const btn = getTriggers(panel).find(
-    (b) => !triggerIcon(b) && b.getAttribute('data-state') === 'active' && matches(b.textContent!.trim())
-  );
-  return btn ? btn.textContent!.trim() : null;
+  const btn = getTriggers(panel).find((b) => isTriggerActive(b) && matches(elementLabelText(b)));
+  return btn ? elementLabelText(btn) : null;
 }
 
 export function allTriggerTexts(panel: HTMLElement, matches: (text: string) => boolean): string[] {
   return getTriggers(panel)
-    .filter((b) => !triggerIcon(b) && matches(b.textContent!.trim()))
-    .map((b) => b.textContent!.trim());
+    .map((b) => elementLabelText(b))
+    .filter(matches);
 }
 
-export const isDurationText = (t: string) => /^\d+s$/i.test(t);
 export const isResolutionText = (t: string) => /^\d+p$/i.test(t);
+// Duration's unit is localized ("6s" in English, "6 с" in Ukrainian). The
+// unit is restricted to letters (not \S) so this doesn't also match the
+// aspect-ratio row's own "16:9"/"9:16"-style labels, which fit "digit(s) +
+// short suffix" just as well.
+export const isDurationText = (t: string) => !isResolutionText(t) && /^\d+\s*[a-zа-яё]{1,3}$/iu.test(t);
 export const isAmountText = (t: string) => /^x\d+$/i.test(t);
 
 export const VIDEO_MODE_ICON: Record<VideoMode, string> = { frames: 'crop_free', ingredients: 'chrome_extension' };
@@ -98,7 +96,7 @@ export function waitForStableTriggers(
 ): Promise<HTMLElement> {
   const readTriggers = (p: HTMLElement) =>
     getTriggers(p)
-      .map((b) => `${b.getAttribute('data-state')}:${b.textContent!.trim()}`)
+      .map((b) => `${isTriggerActive(b)}:${elementLabelText(b)}`)
       .join('|');
 
   return new Promise((resolve) => {
@@ -140,7 +138,7 @@ export function waitForStableTriggers(
 export function waitForTriggerByText(fallbackPanel: HTMLElement, text: string): Promise<HTMLButtonElement | null> {
   return waitFor(() => {
     const panel = getPanel() || fallbackPanel;
-    return getTriggers(panel).find((b) => b.textContent!.trim() === text) || null;
+    return getTriggers(panel).find((b) => elementLabelText(b) === text) || null;
   });
 }
 

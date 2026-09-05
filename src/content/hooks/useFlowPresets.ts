@@ -41,6 +41,10 @@ export interface FlowPresets {
   nanoActive: boolean;
   veoActive: boolean;
   omniActive: boolean;
+  // The label of whichever video model is actually live in Flow right now
+  // — only meaningful when veoActive/omniActive is true, since the trigger
+  // summary alone can't tell the two apart.
+  videoModelLabel: string | null;
   onSetNanoModel: (label: string) => void;
   onSetVeoModel: (label: string) => void;
   onSetOmniModel: (label: string) => void;
@@ -178,6 +182,7 @@ export function useFlowPresets(deps: FlowPresetsDeps): FlowPresets {
     nanoActive,
     veoActive,
     omniActive,
+    videoModelLabel: videoActive.modelLabel,
     onSetNanoModel,
     onSetVeoModel,
     onSetOmniModel,

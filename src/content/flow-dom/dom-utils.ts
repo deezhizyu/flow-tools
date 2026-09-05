@@ -2,6 +2,21 @@ export function nextPaint(): Promise<void> {
   return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 }
 
+// Flow's Angular Material buttons fuse an icon's font-ligature text directly
+// against its label with no separator (e.g. "360pinfo") — walk text nodes
+// and skip anything under a <mat-icon> to read just the label.
+export function elementLabelText(el: Element): string {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return node.parentElement && node.parentElement.closest('mat-icon') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const parts: string[] = [];
+  let n: Node | null;
+  while ((n = walker.nextNode())) parts.push(n.textContent || '');
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 export function isVisible(el: Element | null): boolean {
   if (!el) return false;
   const e = el as HTMLElement;
