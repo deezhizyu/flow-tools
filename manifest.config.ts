@@ -18,9 +18,9 @@ export default defineManifest({
   content_scripts: [
     {
       matches: [
-        'https://labs.google/fx/*/tools/flow/*',
-        'https://labs.google/fx/tools/flow/*',
-        'https://flow.google/*',
+        'https://labs.google.com/fx/*/tools/flow/*',
+        'https://labs.google.com/fx/tools/flow/*',
+        'https://flow.google.com/*',
       ],
       js: ['src/content/index.tsx'],
       run_at: 'document_idle',
